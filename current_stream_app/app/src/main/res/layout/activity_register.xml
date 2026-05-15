@@ -1,6 +1,279 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:fillViewport="true">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/registerToolbar"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="5dp"
+
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageButton
+                android:id="@+id/registerToolbarkBack"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:src="@drawable/pic_arrowback"
+                android:background="@android:color/transparent"
+
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+
+                android:text="회원가입"
+                android:textStyle="bold"
+                android:textColor="@color/login_1"
+                android:textSize="35sp"
+
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <LinearLayout
+            android:id="@+id/registerId"
+            android:layout_width="320dp"
+            android:layout_height="90dp"
+            android:orientation="vertical"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="10dp"
+
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.15">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="아이디"
+                android:textSize="22sp" />
+            <EditText
+                android:id="@+id/registerIdEdit"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@drawable/edit_text_bg_1"
+                android:paddingStart="10dp"
+                android:textSize="18sp"
+                android:textColor="#000000"
+                android:inputType="text"/>
+            <TextView
+                android:id="@+id/registerIdWarn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+
+                android:drawableStart="@drawable/pic_notification_icon"
+                android:text="아이디를 입력해주세요."
+                android:textColor="@color/register_red"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/registerPw"
+            android:layout_width="320dp"
+            android:layout_height="90dp"
+            android:orientation="vertical"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="10dp"
+
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/registerId"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.02">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="비밀번호"
+                android:textSize="22sp" />
+            <EditText
+                android:id="@+id/registerPwEdit"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@drawable/edit_text_bg_1"
+                android:paddingStart="10dp"
+                android:textSize="18sp"
+                android:textColor="#000000"
+                android:inputType="textPassword"/>
+            <TextView
+                android:id="@+id/registerPwWarn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+
+                android:drawableStart="@drawable/pic_notification_icon"
+                android:text="비밀번호를 입력해주세요."
+                android:textColor="@color/register_red"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+
+        <LinearLayout
+            android:id="@+id/registerPwCheck"
+            android:layout_width="320dp"
+            android:layout_height="90dp"
+            android:orientation="vertical"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="10dp"
+
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/registerPw"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.02">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="비밀번호 확인"
+                android:textSize="22sp" />
+            <EditText
+                android:id="@+id/registerPwCheckEdit"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@drawable/edit_text_bg_1"
+                android:paddingStart="10dp"
+                android:textSize="18sp"
+                android:textColor="#000000"
+                android:inputType="textPassword"/>
+            <TextView
+                android:id="@+id/registerPwCheckWarn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+
+                android:drawableStart="@drawable/pic_notification_icon"
+                android:text="비밀번호를 입력해주세요."
+                android:textColor="@color/register_red"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/registerName"
+            android:layout_width="320dp"
+            android:layout_height="90dp"
+            android:orientation="vertical"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="10dp"
+
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/registerPwCheck"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.1">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="이름"
+                android:textSize="22sp" />
+            <EditText
+                android:id="@+id/registerNameEdit"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@drawable/edit_text_bg_1"
+                android:paddingStart="10dp"
+                android:textSize="18sp"
+                android:textColor="#000000"
+                android:inputType="text"/>
+            <TextView
+                android:id="@+id/registerNameWarn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+
+                android:drawableStart="@drawable/pic_notification_icon"
+                android:text="이름을 입력해주세요."
+                android:textColor="@color/register_red"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/registerEmail"
+            android:layout_width="320dp"
+            android:layout_height="90dp"
+            android:orientation="vertical"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="10dp"
+
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/registerName"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.02">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="이메일"
+                android:textSize="22sp" />
+            <EditText
+                android:id="@+id/registerEmailEdit"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@drawable/edit_text_bg_1"
+                android:paddingStart="10dp"
+                android:textSize="18sp"
+                android:textColor="#000000"
+                android:inputType="textEmailAddress"/>
+            <TextView
+                android:id="@+id/registerEmailWarn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+
+                android:drawableStart="@drawable/pic_notification_icon"
+                android:text="이메일을 입력해주세요."
+                android:textColor="@color/register_red"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <Button
+            android:layout_width="290dp"
+            android:layout_height="50dp"
+            android:id="@+id/registerButton"
+
+            android:text="회원가입"
+            android:textStyle="bold"
+            android:textSize="21sp"
+            android:textColor="@color/login_4"
+
+            android:paddingBottom="1dp"
+            android:paddingTop="1dp"
+
+            android:background="@drawable/edit_btn_bg_2"
+            app:backgroundTint="@null"
+
+
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/registerEmail"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.4" />
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

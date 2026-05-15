@@ -7,4 +7,6 @@
     <color name="login_3">#8374DC</color>
     <color name="login_4">#938EB4</color>
     <color name="login_5">#F6F3FF</color>
+    <color name="register_red">#DA3A3A</color>
+    <color name="main_1">#FAFAFF</color>
 </resources>
