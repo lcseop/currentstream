@@ -1,6 +1,234 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:fillViewport="true">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/registerToolbar"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="5dp"
+
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageButton
+                android:id="@+id/registerToolbarkBack"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/pic_arrowback"
+                android:background="@android:color/transparent"
+
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+
+                android:text="팀 만들기"
+                android:textStyle="bold"
+                android:textColor="@color/login_1"
+                android:textSize="35sp"
+
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <LinearLayout
+            android:id="@+id/createTeamName"
+            android:layout_width="320dp"
+            android:layout_height="90dp"
+            android:orientation="vertical"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="10dp"
+
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.15">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="팀 이름"
+                android:textSize="22sp" />
+            <EditText
+                android:id="@+id/createTeamNameEdit"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@drawable/edit_text_bg_1"
+                android:paddingStart="10dp"
+                android:textSize="18sp"
+                android:textColor="#000000"
+                android:inputType="text"/>
+            <TextView
+                android:id="@+id/createTeamNameWarn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+
+                android:drawableStart="@drawable/pic_notification_icon"
+                android:text="팀 이름을 입력해주세요."
+                android:textColor="@color/register_red"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/createTeamDate"
+            android:layout_width="320dp"
+            android:layout_height="90dp"
+            android:orientation="vertical"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="10dp"
+
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/createTeamName"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.02">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="팀 목표 날짜"
+                android:textSize="22sp" />
+            <EditText
+                android:id="@+id/createTeamDateEdit"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+
+                android:background="@drawable/edit_text_bg_1"
+                android:paddingStart="10dp"
+                android:textSize="18sp"
+                android:textColor="#000000"
+                android:inputType="date"/>
+            <TextView
+                android:id="@+id/createTeamDateWarn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+
+                android:drawableStart="@drawable/pic_notification_icon"
+                android:text="날짜는 7일 후로 설정해주세요."
+                android:textColor="@color/register_red"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+
+        <LinearLayout
+            android:id="@+id/createTeamUsers"
+            android:layout_width="320dp"
+            android:layout_height="200dp"
+            android:orientation="vertical"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="10dp"
+
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/createTeamDate"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.02">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="팀원 초대"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="4sp"
+                    android:text="(0/5)"
+                    android:textSize="15sp" />
+            </LinearLayout>
+
+            <EditText
+                android:id="@+id/createTeamUsersEdit"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="2"
+                android:background="@drawable/edit_text_bg_1"
+                android:paddingStart="10dp"
+                android:textSize="18sp"
+                android:textColor="#000000"
+                android:inputType="textPassword"/>
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/createTeamUsersList"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="6"
+                android:background="@drawable/edit_list_bg_1"
+                android:nestedScrollingEnabled="false"
+                android:padding="10dp"/>
+
+        </LinearLayout>
+
+        <Button
+            android:layout_width="290dp"
+            android:layout_height="50dp"
+            android:id="@+id/createTeamButton"
+
+            android:text="만들기"
+            android:textStyle="bold"
+            android:textSize="21sp"
+            android:textColor="@color/white"
+
+            android:paddingBottom="1dp"
+            android:paddingTop="1dp"
+
+            android:background="@drawable/edit_btn_bg_2"
+            app:backgroundTint="@null"
+
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/createTeamUsers"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.4" />
+
+        <Button
+            android:layout_width="290dp"
+            android:layout_height="44dp"
+            android:id="@+id/createTeamCloseButton"
+
+            android:text="취소"
+            android:textStyle="bold"
+            android:textSize="21sp"
+            android:textColor="@color/white"
+
+            android:paddingBottom="1dp"
+            android:paddingTop="1dp"
+
+            android:background="@drawable/edit_btn_bg_2"
+            app:backgroundTint="@null"
+
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/createTeamButton"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.1" />
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>
