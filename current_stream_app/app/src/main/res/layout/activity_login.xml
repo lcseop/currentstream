@@ -2,6 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     android:background="@color/white"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
@@ -9,7 +10,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:src="@drawable/pic_logo"
-        android:id="@+id/loginLogo"
+        android:id="@+id/login_logo"
 
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -22,7 +23,7 @@
         android:text="환영합니다!"
         android:textSize="35dp"
         android:textColor="@color/login_1"
-        android:id="@+id/loginWelcomeTxt"
+        android:id="@+id/login_welcome_txt"
 
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
@@ -37,11 +38,11 @@
         android:background="@drawable/edit_text_bg_1"
         android:gravity="center_vertical"
         android:paddingHorizontal="10dp"
-        android:id="@+id/loginId"
+        android:id="@+id/login_id"
 
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/loginWelcomeTxt"
+        app:layout_constraintTop_toBottomOf="@id/login_welcome_txt"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintVertical_bias="0.05">
 
@@ -69,7 +70,7 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
-            android:id="@+id/loginIdEdit"
+            android:id="@+id/login_id_edit"
 
             android:background="@android:color/transparent"
 
@@ -87,11 +88,11 @@
         android:background="@drawable/edit_text_bg_1"
         android:gravity="center_vertical"
         android:paddingHorizontal="10dp"
-        android:id="@+id/loginPw"
+        android:id="@+id/login_pw"
 
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/loginId"
+        app:layout_constraintTop_toBottomOf="@id/login_id"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintVertical_bias="0.02">
 
@@ -120,7 +121,7 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
-            android:id="@+id/loginPwEdit"
+            android:id="@+id/login_pw_edit"
 
             android:background="@android:color/transparent"
 
@@ -135,7 +136,7 @@
     <Button
         android:layout_width="290dp"
         android:layout_height="40dp"
-        android:id="@+id/loginButton"
+        android:id="@+id/login_button"
 
         android:text="로그인"
         android:textStyle="bold"
@@ -150,14 +151,14 @@
 
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/loginPw"
+        app:layout_constraintTop_toBottomOf="@id/login_pw"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintVertical_bias="0.02" />
 
     <Button
         android:layout_width="290dp"
         android:layout_height="40dp"
-        android:id="@+id/registerButton"
+        android:id="@+id/register_btn"
 
         android:text="회원가입"
         android:textStyle="bold"
@@ -172,7 +173,7 @@
 
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/loginButton"
+        app:layout_constraintTop_toBottomOf="@id/login_button"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintVertical_bias="0.02" />
 
@@ -181,11 +182,11 @@
         android:layout_width="300dp"
         android:layout_height="1dp"
         android:background="#CEBDFF"
-        android:id="@+id/loginLine"
+        android:id="@+id/login_line"
 
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/registerButton"
+        app:layout_constraintTop_toBottomOf="@id/register_btn"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintVertical_bias="0.1"/>
 
@@ -201,11 +202,11 @@
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/loginLine"
+        app:layout_constraintTop_toBottomOf="@id/login_line"
         app:layout_constraintVertical_bias="0.05" />
 
     <ImageView
-        android:id="@+id/btn_google_login"
+        android:id="@+id/login_google_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
 

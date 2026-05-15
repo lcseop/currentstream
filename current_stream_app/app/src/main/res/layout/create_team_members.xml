@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="2dp"
+    android:layout_marginLeft="6dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="0dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/create_team_list_name"
+
+            android:text="이충섭"
+            android:textSize="20sp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/create_team_list_id"
+
+            android:text="dik4321"
+            android:textColor="#B4B4B4"
+            android:textSize="12sp"
+
+            android:paddingLeft="6dp" />
+    </LinearLayout>
+
+    <ImageButton
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_gravity="center|end"
+        android:id="@+id/create_team_ban_btn"
+
+        android:src="@drawable/pic_ban"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:scaleType="fitCenter"/>
+
+
+</androidx.cardview.widget.CardView>
