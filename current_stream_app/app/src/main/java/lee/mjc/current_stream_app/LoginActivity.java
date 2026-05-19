@@ -57,14 +57,19 @@ public class LoginActivity extends AppCompatActivity {
                             if (user == null) return;
 
                             user.getIdToken(true).addOnCompleteListener(tokenTask -> {
-                                String idToken = tokenTask.getResult().getToken();
-                                // 세션 싱글톤 클래스에 로그인 정보 저장
-                                SessionManager.getInstance().setIdToken(idToken);
-                                sendTokenToServer(idToken);
+                                if (tokenTask.isSuccessful()) {
+                                    String idToken = tokenTask.getResult().getToken();
+                                    // 세션 싱글톤 클래스에 로그인 정보 저장
+                                    SessionManager.getInstance().setIdToken(idToken);
+                                    sendTokenToServer(idToken);
+                                } else {
+                                    Log.e("LOGIN", "토큰 발급 실패");
+                                }
+                                
                             });
                         } else {
                             // 로그인 실패 대화상자 넣어야 함
-                            Log.d("LOGIN", "로그인 실패");
+                            Log.e("LOGIN", "로그인 실패");
                         }
                     });
         });
@@ -85,7 +90,7 @@ public class LoginActivity extends AppCompatActivity {
         );
         // requestBody를 url을 통해 post 메소드로 요청함
         Request request = new Request.Builder()
-                .url("http://10.0.2.2:8080/api/user/login") // ✅ 중요
+                .url("http://10.0.2.2:8080/api/user/login")
                 .post(body)
                 .build();
 
@@ -94,7 +99,7 @@ public class LoginActivity extends AppCompatActivity {
             // 실패 시
             @Override
             public void onFailure(Call call, IOException e) {
-                Log.e("API", "서버 요청 실패", e);
+                Log.e("API", "서버 요청 : 실패", e);
             }
             
             // 성공 시 메인으로 액티비티 이동
@@ -102,11 +107,14 @@ public class LoginActivity extends AppCompatActivity {
             public void onResponse(Call call, Response response) throws IOException {
 
                 String responseBody = response.body().string();
+                Log.d("API", "code=" + response.code());
                 Log.d("API", responseBody);
 
-                runOnUiThread(() -> {
-                    moveToMain();
-                });
+                if (response.isSuccessful()) {
+                    runOnUiThread(() -> moveToMain());
+                } else {
+                    Log.e("API", "서버 : 실패");
+                }
             }
         });
     }
