@@ -56,8 +56,8 @@
                 android:layout_gravity="center"
                 android:translationX="-2dp"
 
-                android:text="Email"
-                android:textSize="11sp"
+                android:text="ID"
+                android:textSize="17sp"
                 android:textColor="#AAA0FF"/>
         </FrameLayout>
 

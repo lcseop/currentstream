@@ -45,6 +45,7 @@ public class LoginActivity extends AppCompatActivity {
         loginBtn.setOnClickListener((v) -> {
             String email = loginIdEdit.getText().toString();
             String password = loginPwEdit.getText().toString();
+            if (email.isEmpty() || password.isEmpty()) return;
             // Firebase 로그인
             FirebaseAuth.getInstance()
                     // 이메일, 비밀번호 기입
@@ -57,8 +58,8 @@ public class LoginActivity extends AppCompatActivity {
 
                             user.getIdToken(true).addOnCompleteListener(tokenTask -> {
                                 String idToken = tokenTask.getResult().getToken();
-                                Log.d("TOKEN", idToken);
-
+                                // 세션 싱글톤 클래스에 로그인 정보 저장
+                                SessionManager.getInstance().setIdToken(idToken);
                                 sendTokenToServer(idToken);
                             });
                         } else {
