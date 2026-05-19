@@ -31,7 +31,9 @@ android {
 }
 
 dependencies {
-
+    // http 통신 의존성 추가
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    
     // firebase 의존성 추가
     // Import the Firebase BoM
     implementation platform('com.google.firebase:firebase-bom:34.13.0')

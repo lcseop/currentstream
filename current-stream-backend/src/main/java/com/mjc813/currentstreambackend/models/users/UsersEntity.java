@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 // 기본적인 롬복 애너테이션 설정
-@Entity
+@Entity(name="users")
 @Getter
 @Setter
 @AllArgsConstructor
