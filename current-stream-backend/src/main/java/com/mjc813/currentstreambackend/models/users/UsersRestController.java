@@ -18,8 +18,8 @@ public class UsersRestController {
         public ResponseEntity<ApiResponse<UsersDto>> login (@RequestBody TokenRequest request)
                                 throws FirebaseAuthException {
         UsersDto result = this.usersService.loginOrRegister(request.getIdToken());
-        return ResponseEntity.status(201).body(ApiResponse.make(
-                ResponseCode.select_ok, "login success", result
-        ));
+        return ResponseEntity.status(201).body(
+                ApiResponse.make(ResponseCode.select_ok, "login success", result)
+        );
     }
 }

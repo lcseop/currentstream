@@ -13,4 +13,6 @@ public interface UsersRepository extends JpaRepository<UsersEntity, Long> {
     Optional<UsersEntity> findByUid(String uid);
 
     boolean existsByTag(String tag);
+
+    Optional<UsersEntity> findByTag(String tag);
 }

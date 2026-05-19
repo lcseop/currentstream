@@ -20,15 +20,15 @@ public class UsersEntity implements UsersInterface {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(length = 128, unique = true, nullable = false)
     private String uid;
 
-    @Column(nullable = false)
+    @Column(length = 50, nullable = false)
     private String name;
 
-    @Column(nullable = false)
+    @Column(length = 50, nullable = false)
     private String email;
 
-    @Column(unique = true, nullable = false)
+    @Column(length = 30, unique = true, nullable = false)
     private String tag;
 }

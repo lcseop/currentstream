@@ -1,7 +1,7 @@
 package com.mjc813.currentstreambackend.models.users;
 
 /*
-    UsersDto, UsersEntity를 잇게 해주는 인터페이스
+    Dto, Entity를 잇게 해주는 인터페이스
  */
 public interface UsersInterface {
     Long getId();
