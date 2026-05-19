@@ -18,4 +18,5 @@ public class UsersDto implements UsersInterface {
     private String uid;
     private String name;
     private String email;
+    private String tag;
 }

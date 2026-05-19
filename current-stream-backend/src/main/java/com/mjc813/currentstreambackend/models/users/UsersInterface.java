@@ -16,6 +16,9 @@ public interface UsersInterface {
     String getEmail();
     void setEmail(String email);
 
+    String getTag();
+    void setTag(String tag);
+
     /*
         Service에서 Entity를 바로 쓰면 생기는 영속성 문제, DTO로 반드시 리턴해야 하는 문제
         를 해결하기 위해 만든 default copy 복사 메소드
@@ -35,6 +38,9 @@ public interface UsersInterface {
         }
         if (forced || src.getEmail() != null) {
             this.setEmail(src.getEmail());
+        }
+        if (forced || src.getTag() != null) {
+            this.setTag(src.getTag());
         }
         return this;
     }
