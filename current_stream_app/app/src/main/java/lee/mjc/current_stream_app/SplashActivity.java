@@ -23,6 +23,7 @@ public class SplashActivity extends AppCompatActivity {
             user.getIdToken(true).addOnCompleteListener(task -> {
                 if (task.isSuccessful()) {
                     String idToken = task.getResult().getToken();
+                    SessionManager.getInstance().setIdToken(idToken);
                     sendTokenToServer(idToken);
                 } else {
                     moveToLogin();

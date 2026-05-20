@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "539756570522-mgl27pkj5j3psl4iikrq9elhfku54r54.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "lee.mjc.current_stream_app",
+            "certificate_hash": "0f04322c7eeb9a611a4c17cb60e28e17bd6b388f"
+          }
+        },
+        {
           "client_id": "539756570522-eaq84hp1r57mb1d41076hmi4bhu6hqf7.apps.googleusercontent.com",
           "client_type": 3
         }
