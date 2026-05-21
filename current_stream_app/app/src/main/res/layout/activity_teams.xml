@@ -27,15 +27,21 @@
             app:layout_constraintBottom_toBottomOf="parent" />
 
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="300dp"
+            android:layout_height="50dp"
             android:layout_gravity="center"
             android:id="@+id/teams_header_title"
 
             android:text="팀 이름"
             android:textStyle="bold"
             android:textColor="@color/login_1"
-            android:textSize="35sp"
+
+            android:gravity="center"
+
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="5sp"
+            android:autoSizeMaxTextSize="35sp"
+            android:autoSizeStepGranularity="1sp"
 
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintLeft_toLeftOf="parent"

@@ -128,7 +128,7 @@ public class RegisterActivity extends AppCompatActivity {
             // 실패 시
             @Override
             public void onFailure(Call call, IOException e) {
-                e.printStackTrace();
+                Log.e("API", "서버 응답 실패 : " + e);
             }
 
             // 성공 시 로그인 액티비티로 다시 이동

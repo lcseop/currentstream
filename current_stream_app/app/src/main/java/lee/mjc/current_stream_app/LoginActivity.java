@@ -158,7 +158,7 @@ public class LoginActivity extends AppCompatActivity {
             // 실패 시
             @Override
             public void onFailure(Call call, IOException e) {
-                Log.e("API", "서버 요청 : 실패", e);
+                Log.e("API", "서버 응답 실패 : " + e);
             }
             
             // 성공 시 메인으로 액티비티 이동
@@ -177,7 +177,7 @@ public class LoginActivity extends AppCompatActivity {
                 } else {
                     // 서버에 연결 실패 (이메일 인증을 안하는 등) 시 로그아웃
                     FirebaseAuth.getInstance().signOut();
-                    Log.e("API", "서버 : 실패");
+                    Log.e("API", "서버 응답 실패");
                 }
             }
         });
