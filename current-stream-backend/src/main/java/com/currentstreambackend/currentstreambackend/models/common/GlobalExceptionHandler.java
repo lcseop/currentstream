@@ -13,6 +13,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<ApiResponse<String>> handleEmailNotVerified() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                ApiResponse.make(ResponseCode.failed, "email not verified", "EMAIL_NOT_VERIFIED")
+        );
+    }
+
     @ExceptionHandler(FirebaseAuthException.class)
     public ResponseEntity<ApiResponse<String>> handleFirebase() {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(

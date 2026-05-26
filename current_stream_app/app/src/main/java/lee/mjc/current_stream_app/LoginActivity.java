@@ -3,8 +3,10 @@ package lee.mjc.current_stream_app;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -17,8 +19,11 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.FirebaseTooManyRequestsException;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
+import com.google.firebase.auth.FirebaseAuthInvalidUserException;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
 
@@ -35,6 +40,7 @@ import okhttp3.Response;
 
 public class LoginActivity extends AppCompatActivity {
 
+    FrameLayout loadingOverlay;
     EditText loginIdEdit, loginPwEdit;
     Button loginBtn, regiBtn;
     ImageButton googleBtn;
@@ -64,6 +70,7 @@ public class LoginActivity extends AppCompatActivity {
         loginBtn = findViewById(R.id.login_button);
         regiBtn = findViewById(R.id.login_register_btn);
         googleBtn = findViewById(R.id.login_google_button);
+        loadingOverlay = findViewById(R.id.loading_overlay);
 
         // 회원가입 버튼 클릭
         regiBtn.setOnClickListener((v) -> {
@@ -84,6 +91,10 @@ public class LoginActivity extends AppCompatActivity {
             String email = loginIdEdit.getText().toString();
             String password = loginPwEdit.getText().toString();
             if (email.isEmpty() || password.isEmpty()) return;
+            runOnUiThread(() -> {
+                loadingOverlay.setVisibility(View.VISIBLE);
+            });
+
             // Firebase 로그인
             FirebaseAuth.getInstance()
                     // 이메일, 비밀번호 기입
@@ -112,8 +123,27 @@ public class LoginActivity extends AppCompatActivity {
                                 
                             });
                         } else {
-                            // 로그인 실패 대화상자 넣어야 함
-                            Log.e("LOGIN", "로그인 실패");
+                            // 예외에 각 로그인 오류를 받아 적절한 에러 메시지를 띄워줌
+                            Exception e = task.getException();
+                            runOnUiThread(() -> {
+                                String errorMessage = "";
+                                if (e instanceof FirebaseAuthInvalidUserException) {
+                                    errorMessage = "가입되지 않은 이메일입니다.";
+                                } else if (e instanceof FirebaseAuthInvalidCredentialsException) {
+                                    errorMessage = "이메일 또는 비밀번호가 틀렸습니다.";
+                                } else if (e instanceof FirebaseTooManyRequestsException) {
+                                    errorMessage = "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.";
+                                } else {
+                                    errorMessage = "알 수 없는 이유로 로그인에 실패했습니다.";
+                                    Log.e("LOGIN", "로그인 실패", e);
+                                }
+                                loadingOverlay.setVisibility(View.GONE);
+                                CommonDialog dig = new CommonDialog(LoginActivity.this, errorMessage, "확인");
+                                dig.setOnConfirmListener(view -> {
+                                    dig.dismiss();
+                                });
+                                dig.show();
+                            });
                         }
                     });
         });
@@ -127,6 +157,9 @@ public class LoginActivity extends AppCompatActivity {
         googleSignInClient = GoogleSignIn.getClient(this, gso);
 
         googleBtn.setOnClickListener(v -> {
+            runOnUiThread(() -> {
+                loadingOverlay.setVisibility(View.VISIBLE);
+            });
             Intent intent = googleSignInClient.getSignInIntent();
             googleLauncher.launch(intent);
         });
@@ -158,7 +191,14 @@ public class LoginActivity extends AppCompatActivity {
             // 실패 시
             @Override
             public void onFailure(Call call, IOException e) {
-                Log.e("API", "서버 응답 실패 : " + e);
+                runOnUiThread(() -> {
+                    loadingOverlay.setVisibility(View.GONE);
+                    CommonDialog dig = new CommonDialog(LoginActivity.this, "서버와 응답이 되지 않습니다.", "확인");
+                    dig.setOnConfirmListener(view -> {
+                        dig.dismiss();
+                    });
+                    dig.show();
+                });
             }
             
             // 성공 시 메인으로 액티비티 이동
@@ -166,19 +206,44 @@ public class LoginActivity extends AppCompatActivity {
             public void onResponse(Call call, Response response) throws IOException {
 
                 String responseBody =
-                        response.body() != null
-                                ? response.body().string()
-                                : "";
-                Log.d("API", "code=" + response.code());
+                        response.body() != null ? response.body().string() : "";
+
+                int code = response.code();
+
+                Log.d("API", "code=" + code);
                 Log.d("API", responseBody);
 
-                if (response.isSuccessful()) {
-                    runOnUiThread(() -> moveToMain());
-                } else {
-                    // 서버에 연결 실패 (이메일 인증을 안하는 등) 시 로그아웃
-                    FirebaseAuth.getInstance().signOut();
-                    Log.e("API", "서버 응답 실패");
-                }
+                runOnUiThread(() -> {
+
+                    loadingOverlay.setVisibility(View.GONE);
+                    String errorMessage = "";
+
+                    if (code >= 200 && code < 300) {
+                        moveToMain();
+                    }
+                    else if (code == 401) {
+                        errorMessage = "로그인 인증이 만료되었습니다.";
+                        FirebaseAuth.getInstance().signOut();
+                    }
+                    else if (code == 403) {
+                        errorMessage = "이메일 인증이 필요합니다.";
+                        FirebaseAuth.getInstance().signOut();
+                    }
+                    else if (code >= 500) {
+                        errorMessage = "서버가 응답을 받지 않습니다.";
+                    }
+                    else {
+                        errorMessage = "로그인 실패";
+                    }
+                    loadingOverlay.setVisibility(View.GONE);
+                    if (! errorMessage.isEmpty()) {
+                        CommonDialog dig = new CommonDialog(LoginActivity.this, errorMessage, "확인");
+                        dig.setOnConfirmListener(view -> {
+                            dig.dismiss();
+                        });
+                        dig.show();
+                    }
+                });
             }
         });
     }
@@ -238,7 +303,14 @@ public class LoginActivity extends AppCompatActivity {
                                     sendTokenToServer(firebaseToken);
                                 });
                     } else {
-                        Log.e("GOOGLE", "Firebase login failed");
+                        runOnUiThread(() -> {
+                            loadingOverlay.setVisibility(View.GONE);
+                            CommonDialog dig = new CommonDialog(LoginActivity.this, "구글 로그인에 실패했습니다.", "확인");
+                            dig.setOnConfirmListener(view -> {
+                                dig.dismiss();
+                            });
+                            dig.show();
+                        });
                     }
                 });
     }

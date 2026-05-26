@@ -1,10 +1,13 @@
 package com.currentstreambackend.currentstreambackend.models.users;
 
+import com.currentstreambackend.currentstreambackend.models.common.EmailNotVerifiedException;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 import java.util.Optional;
@@ -64,9 +67,9 @@ public class UsersService {
             provider = (String) firebaseClaims.get("sign_in_provider");
         }
 
-        // ✅ 이메일 로그인만 인증 체크
+        // 이메일 로그인만 인증 체크
         if ("password".equals(provider) && !token.isEmailVerified()) {
-            throw new RuntimeException("EMAIL_NOT_VERIFIED");
+            throw new EmailNotVerifiedException();
         }
 
         Optional<UsersEntity> optional = usersRepository.findByUid(uid);
