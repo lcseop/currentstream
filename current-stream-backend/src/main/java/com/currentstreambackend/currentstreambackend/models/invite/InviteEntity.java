@@ -3,8 +3,6 @@ package com.currentstreambackend.currentstreambackend.models.invite;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDate;
-
 // 기본적인 롬복 애너테이션 설정
 @Entity(name="team_invite")
 @Getter
@@ -31,4 +29,10 @@ public class InviteEntity {
 
     @Column(nullable = false)
     private Long teamId;
+
+    @Column(length = 100, name = "team_name", nullable = false)
+    private String teamName;
+
+    @Column(length = 50, nullable = false)
+    private String inviterName;
 }

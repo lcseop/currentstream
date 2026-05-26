@@ -6,6 +6,8 @@ import com.currentstreambackend.currentstreambackend.models.invite.InviteEntity;
 import com.currentstreambackend.currentstreambackend.models.invite.InviteRepository;
 import com.currentstreambackend.currentstreambackend.models.mapping.MappingEntity;
 import com.currentstreambackend.currentstreambackend.models.mapping.MappingRepository;
+import com.currentstreambackend.currentstreambackend.models.teamlogs.TeamLogsRepository;
+import com.currentstreambackend.currentstreambackend.models.teamlogs.TeamLogsService;
 import com.currentstreambackend.currentstreambackend.models.users.UsersEntity;
 import com.currentstreambackend.currentstreambackend.models.users.UsersRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +36,9 @@ public class TeamsService {
 
     @Autowired
     private GoalRepository goalRepository;
+
+    @Autowired
+    private TeamLogsService teamLogsService;
 
     private static final String[] COLORS = {
             "#FF6B6B", "#4ECDC4", "#45B7D1",
@@ -68,6 +73,12 @@ public class TeamsService {
         mapping.setUserColor("#757575");
 
         mappingRepository.save(mapping);
+
+        teamLogsService.createLog(
+                saved.getId(),
+                user.getId(),
+                user.getName() + "(" + user.getTag() + ")" + "님이 팀을 생성했습니다."
+        );
 
         return TeamsDto.fromEntity(saved);
     }
@@ -117,6 +128,9 @@ public class TeamsService {
         invite.setTeamId(teamId);
         invite.setUserId(target.getId());
         invite.setStatus(0);
+        // 초대 목록에서 바로 보여주기 위한 표시용 값 저장
+        invite.setTeamName(team.getTeamName());
+        invite.setInviterName(user.getName());
 
         inviteRepository.save(invite);
     }
@@ -150,6 +164,12 @@ public class TeamsService {
         // 상태 값을 1 (수락)으로 변경
         invite.setStatus(1);
         inviteRepository.save(invite);
+
+        teamLogsService.createLog(
+                invite.getTeamId(),
+                user.getId(),
+                user.getName() + "님이 참가했습니다."
+        );
     }
 
     /**
@@ -210,6 +230,12 @@ public class TeamsService {
 
         // mappingRepository를 이용하여 해당 사용자를 팀에서 제거함
         mappingRepository.deleteByUserIdAndTeamId(user.getId(), teamId);
+
+        teamLogsService.createLog(
+                team.getId(),
+                user.getId(),
+                user.getName() + "님이 팀을 탈퇴했습니다."
+        );
     }
 
     /**

@@ -9,6 +9,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
+import org.json.JSONObject;
+
 // 앱의 시작을 알리는 액티비티
 public class SplashActivity extends AppCompatActivity {
 
@@ -57,10 +59,31 @@ public class SplashActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onResponse(okhttp3.Call call, okhttp3.Response response) {
-                runOnUiThread(() -> moveToMain());
+            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+                String responseBody = response.body() != null ? response.body().string() : "";
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        saveUserInfoFromLogin(responseBody);
+                        moveToMain();
+                    } else {
+                        moveToLogin();
+                    }
+                });
             }
         });
+    }
+
+    private void saveUserInfoFromLogin(String responseBody) {
+        try {
+            JSONObject root = new JSONObject(responseBody);
+            JSONObject data = root.optJSONObject("responseData");
+            if (data == null) return;
+
+            SessionManager sm = SessionManager.getInstance();
+            sm.setUid(data.optString("uid", ""));
+            sm.setTag(data.optString("tag", ""));
+        } catch (Exception ignored) {
+        }
     }
 
     private void moveToMain() {

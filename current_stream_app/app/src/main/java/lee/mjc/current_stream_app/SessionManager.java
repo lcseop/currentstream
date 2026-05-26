@@ -4,10 +4,12 @@ package lee.mjc.current_stream_app;
 public class SessionManager {
     private static SessionManager instance;
     private String idToken;
+    private String uid;        // Firebase uid
+    private String tag;
+    private Long currentTeamId;
 
     private SessionManager() {}
 
-    // 싱글톤 생성
     public static SessionManager getInstance() {
         if (instance == null) {
             instance = new SessionManager();
@@ -21,5 +23,29 @@ public class SessionManager {
 
     public String getIdToken() {
         return idToken;
+    }
+
+    public void setUid(String uid) {
+        this.uid = uid;
+    }
+
+    public String getUid() {
+        return uid;
+    }
+
+    public void setTag(String tag) {
+        this.tag = tag;
+    }
+
+    public String getTag() {
+        return tag;
+    }
+
+    public void setCurrentTeamId(Long teamId) {
+        this.currentTeamId = teamId;
+    }
+
+    public Long getCurrentTeamId() {
+        return currentTeamId;
     }
 }

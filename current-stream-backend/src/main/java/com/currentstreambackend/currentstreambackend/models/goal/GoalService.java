@@ -1,6 +1,7 @@
 package com.currentstreambackend.currentstreambackend.models.goal;
 
 import com.currentstreambackend.currentstreambackend.models.mapping.MappingRepository;
+import com.currentstreambackend.currentstreambackend.models.teamlogs.TeamLogsService;
 import com.currentstreambackend.currentstreambackend.models.teams.TeamsEntity;
 import com.currentstreambackend.currentstreambackend.models.teams.TeamsRepository;
 import com.currentstreambackend.currentstreambackend.models.users.UsersEntity;
@@ -24,6 +25,9 @@ public class GoalService {
 
     @Autowired
     private TeamsRepository teamsRepository;
+
+    @Autowired
+    private TeamLogsService teamLogsService;
 
     /**
      * 목표 생성 서비스 로직
@@ -51,6 +55,12 @@ public class GoalService {
         goal.setUserId(user.getId());
         goal.setTeamId(teamId);
 
+        teamLogsService.createLog(
+                teamId,
+                user.getId(),
+                user.getName() + "님에게 " + shorten(goal.getGoalText(), 10) + "목표가 추가되었습니다."
+        );
+
         return GoalDto.fromEntity(goalRepository.save(goal));
     }
 
@@ -76,6 +86,30 @@ public class GoalService {
             throw new RuntimeException("No premission");
         }
 
+        switch(status) {
+            case 0 :
+                teamLogsService.createLog(
+                        team.getId(),
+                        user.getId(),
+                        user.getName() + "님의 " + shorten(goal.getGoalText(), 10) + "목표가 진행 중으로 바뀌었습니다."
+                );
+                break;
+            case 1 :
+                teamLogsService.createLog(
+                        team.getId(),
+                        user.getId(),
+                        user.getName() + "님이 " + shorten(goal.getGoalText(), 10) + "목표를 달성하셨습니다."
+                );
+                break;
+            case 2 :
+                teamLogsService.createLog(
+                        team.getId(),
+                        user.getId(),
+                        user.getName() + "님의 " + shorten(goal.getGoalText(), 10) + "목표가 삭제되었습니다."
+                );
+                break;
+        }
+
         // 상태 변경
         goal.setStatus(status);
         goalRepository.save(goal);
@@ -98,6 +132,12 @@ public class GoalService {
             throw new RuntimeException("No premission");
         }
 
+        teamLogsService.createLog(
+                team.getId(),
+                user.getId(),
+                user.getName() + "님의 " + shorten(goal.getGoalText(), 10) + "목표가 삭제되었습니다."
+        );
+
         goalRepository.deleteById(goalId);
     }
 
@@ -114,5 +154,14 @@ public class GoalService {
                 .stream()
                 .map(GoalDto::fromEntity)
                 .toList();
+    }
+
+    private String shorten(String text, int max) {
+
+        if (text.length() <= max) {
+            return text;
+        }
+
+        return text.substring(0, max) + "...";
     }
 }

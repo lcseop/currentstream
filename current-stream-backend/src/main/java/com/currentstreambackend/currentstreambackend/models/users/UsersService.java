@@ -94,7 +94,16 @@ public class UsersService {
         return (UsersDto) new UsersDto().copyMembers(user, true);
     }
 
-
+    /**
+     * tag로 사용자 조회 (팀원 초대 전 확인용)
+     * @param tag
+     * @return 해당 tag를 가진 사용자
+     */
+    public UsersDto findByTag(String tag) {
+        UsersEntity user = usersRepository.findByTag(tag)
+                .orElseThrow(() -> new RuntimeException("Target not found"));
+        return (UsersDto) new UsersDto().copyMembers(user, true);
+    }
 
     /**
      * 태그 자동 생성

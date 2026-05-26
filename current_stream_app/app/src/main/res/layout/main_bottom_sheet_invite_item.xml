@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="14dp"
+    android:orientation="vertical"
+    android:padding="14dp"
+    android:background="@drawable/edit_list_bg_1">
+
+    <TextView
+        android:id="@+id/item_invite_team"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="MobileTeam"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#333333"/>
+
+    <TextView
+        android:id="@+id/item_invite_message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="김팀장#1234 님이 초대했습니다."
+        android:textSize="14sp"
+        android:textColor="#777777"/>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/item_invite_reject"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="거절"
+            android:textColor="#D32F2F"
+            android:backgroundTint="#FFCDD2"/>
+
+        <Button
+            android:id="@+id/item_invite_accept"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="수락"/>
+    </LinearLayout>
+
+</LinearLayout>

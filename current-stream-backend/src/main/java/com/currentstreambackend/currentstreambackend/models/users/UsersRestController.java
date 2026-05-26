@@ -52,4 +52,17 @@ public class UsersRestController {
                 ApiResponse.make(ResponseCode.select_ok, "login success", result)
         );
     }
+
+    /**
+     * tag로 사용자 존재 여부 확인
+     * @param tag
+     * @return tag에 해당하는 사용자 정보
+     */
+    @GetMapping("/tag")
+    public ResponseEntity<ApiResponse<UsersDto>> findByTag(@RequestParam String tag) {
+        UsersDto result = usersService.findByTag(tag);
+        return ResponseEntity.ok(
+                ApiResponse.make(ResponseCode.select_ok, "user found", result)
+        );
+    }
 }

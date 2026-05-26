@@ -27,6 +27,8 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
 
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.net.HttpCookie;
 
@@ -219,6 +221,7 @@ public class LoginActivity extends AppCompatActivity {
                     String errorMessage = "";
 
                     if (code >= 200 && code < 300) {
+                        saveUserInfoFromLogin(responseBody);
                         moveToMain();
                     }
                     else if (code == 401) {
@@ -253,6 +256,19 @@ public class LoginActivity extends AppCompatActivity {
         Intent intent = new Intent(LoginActivity.this, MainActivity.class);
         startActivity(intent);
         finish();
+    }
+
+    private void saveUserInfoFromLogin(String responseBody) {
+        try {
+            JSONObject root = new JSONObject(responseBody);
+            JSONObject data = root.optJSONObject("responseData");
+            if (data == null) return;
+
+            SessionManager sm = SessionManager.getInstance();
+            sm.setUid(data.optString("uid", ""));
+            sm.setTag(data.optString("tag", ""));
+        } catch (Exception ignored) {
+        }
     }
 
     /**

@@ -17,6 +17,8 @@ public class InviteDto {
     private Integer status;
     private Long userId;
     private Long teamId;
+    private String teamName;
+    private String inviterName;
 
 
     public static InviteDto fromEntity(InviteEntity invite) {
@@ -25,6 +27,8 @@ public class InviteDto {
         dto.setStatus(invite.getStatus());
         dto.setUserId(invite.getUserId());
         dto.setTeamId(invite.getTeamId());
+        dto.setTeamName(invite.getTeamName());
+        dto.setInviterName(invite.getInviterName());
         return dto;
     }
 }

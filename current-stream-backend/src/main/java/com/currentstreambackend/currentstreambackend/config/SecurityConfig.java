@@ -13,9 +13,9 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/user/login").permitAll()
-                        .requestMatchers("/api/user/signup").permitAll()
-                        .anyRequest().authenticated()
+                        // 앱은 Spring Security 세션이 아니라 uid 헤더로 API를 호출함
+                        .requestMatchers("/api/**").permitAll()
+                        .anyRequest().permitAll()
                 );
 
         return http.build();
