@@ -25,16 +25,14 @@ import java.util.List;
 
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
+// 팀원 초대 다이얼로그 (tag 검색, 초대 전송)
 public final class InviteMemberDialog {
 
-    private static final String BASE_URL = "http://10.0.2.2:8080";
-    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
     private static final int MAX_INVITE_COUNT = 5;
 
     public interface OnCompleteListener {
@@ -44,6 +42,7 @@ public final class InviteMemberDialog {
     private InviteMemberDialog() {
     }
 
+    // 팀원 초대 다이얼로그 표시 (tag 검색 후 목록에 추가)
     public static void show(AppCompatActivity activity, long teamId, OnCompleteListener listener) {
         Dialog dialog = new Dialog(activity);
         dialog.setContentView(R.layout.dialog_invite_member);
@@ -57,7 +56,7 @@ public final class InviteMemberDialog {
         MaterialButton cancelBtn = dialog.findViewById(R.id.dialog_invite_cancel);
         MaterialButton submitBtn = dialog.findViewById(R.id.dialog_invite_submit);
 
-        OkHttpClient client = new OkHttpClient();
+        OkHttpClient client = ApiHelper.CLIENT;
         List<InviteMember> inviteMembers = new ArrayList<>();
 
         listRv.setLayoutManager(new LinearLayoutManager(activity));
@@ -95,10 +94,12 @@ public final class InviteMemberDialog {
         dialog.show();
     }
 
+    // 초대 목록 카운트 텍스트 갱신 (n/5)
     private static void updateCount(TextView countTv, List<InviteMember> members) {
         countTv.setText("(" + members.size() + "/" + MAX_INVITE_COUNT + ")");
     }
 
+    // tag 입력 후 서버에서 사용자 존재 여부 확인하고 목록에 추가
     private static void verifyAndAddTag(
             AppCompatActivity activity,
             OkHttpClient client,
@@ -128,7 +129,7 @@ public final class InviteMemberDialog {
         try {
             String encodedTag = URLEncoder.encode(tag, StandardCharsets.UTF_8.toString());
             Request request = new Request.Builder()
-                    .url(BASE_URL + "/api/user/tag?tag=" + encodedTag)
+                    .url(ApiConfig.BASE_URL + "/api/user/tag?tag=" + encodedTag)
                     .get()
                     .build();
 
@@ -154,7 +155,7 @@ public final class InviteMemberDialog {
 
                         try {
                             JSONObject root = new JSONObject(resBody);
-                            if (!root.optString("responseCode", "").endsWith("_ok")) {
+                            if (!ApiHelper.isSuccess(root)) {
                                 showMessage(activity, "존재하지 않는 tag입니다.");
                                 return;
                             }
@@ -206,6 +207,7 @@ public final class InviteMemberDialog {
         }
     }
 
+    // 이미 팀 멤버인지 확인 후 초대 목록에 추가
     private static void validateNotAlreadyInTeam(
             AppCompatActivity activity,
             OkHttpClient client,
@@ -225,7 +227,7 @@ public final class InviteMemberDialog {
         }
 
         Request request = new Request.Builder()
-                .url(BASE_URL + "/api/team/" + teamId + "/members")
+                .url(ApiConfig.BASE_URL + "/api/team/" + teamId + "/members")
                 .addHeader("uid", uid)
                 .build();
 
@@ -272,6 +274,7 @@ public final class InviteMemberDialog {
         });
     }
 
+    // 초대 목록을 순차적으로 서버에 전송 (재귀)
     private static void sendInvites(
             AppCompatActivity activity,
             OkHttpClient client,
@@ -302,9 +305,9 @@ public final class InviteMemberDialog {
             json.put("teamId", String.valueOf(teamId));
             json.put("tag", tag);
 
-            RequestBody body = RequestBody.create(json.toString(), JSON);
+            RequestBody body = RequestBody.create(json.toString(), ApiHelper.JSON);
             Request request = new Request.Builder()
-                    .url(BASE_URL + "/api/team/invite")
+                    .url(ApiConfig.BASE_URL + "/api/team/invite")
                     .post(body)
                     .addHeader("uid", uid)
                     .build();
@@ -341,6 +344,7 @@ public final class InviteMemberDialog {
         }
     }
 
+    // 초대 목록에 동일 tag가 있는지 확인
     private static boolean containsTag(List<InviteMember> members, String tag) {
         for (InviteMember member : members) {
             if (member.tag.equals(tag)) return true;
@@ -348,6 +352,7 @@ public final class InviteMemberDialog {
         return false;
     }
 
+    // 서버 초대 오류 응답을 사용자 메시지로 변환
     private static String mapInviteError(String body) {
         try {
             JSONObject root = new JSONObject(body);
@@ -369,9 +374,8 @@ public final class InviteMemberDialog {
         return "초대 전송에 실패했습니다.";
     }
 
+    // CommonDialog로 오류/안내 메시지 표시
     private static void showMessage(AppCompatActivity activity, String message) {
-        CommonDialog commonDialog = new CommonDialog(activity, message, "확인");
-        commonDialog.setOnConfirmListener(v -> commonDialog.dismiss());
-        commonDialog.show();
+        CommonDialog.showError(activity, message);
     }
 }

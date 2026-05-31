@@ -11,6 +11,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
 
+// 팀 생성/초대 시 추가된 멤버 목록 어댑터
 public class CreateTeamMemberAdapter extends RecyclerView.Adapter<CreateTeamMemberAdapter.MemberViewHolder> {
 
     public interface OnRemoveListener {
@@ -20,6 +21,7 @@ public class CreateTeamMemberAdapter extends RecyclerView.Adapter<CreateTeamMemb
     private final List<InviteMember> members;
     private final OnRemoveListener listener;
 
+    // 초대 멤버 목록과 삭제 리스너로 어댑터 생성
     public CreateTeamMemberAdapter(List<InviteMember> members, OnRemoveListener listener) {
         this.members = members;
         this.listener = listener;
@@ -27,6 +29,7 @@ public class CreateTeamMemberAdapter extends RecyclerView.Adapter<CreateTeamMemb
 
     @NonNull
     @Override
+    // 멤버 항목 ViewHolder 생성
     public MemberViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.create_team_members, parent, false);
@@ -34,6 +37,7 @@ public class CreateTeamMemberAdapter extends RecyclerView.Adapter<CreateTeamMemb
     }
 
     @Override
+    // 이름, tag, 삭제 버튼 바인딩
     public void onBindViewHolder(@NonNull MemberViewHolder holder, int position) {
         InviteMember member = members.get(position);
         holder.nameTv.setVisibility(View.VISIBLE);
@@ -58,6 +62,7 @@ public class CreateTeamMemberAdapter extends RecyclerView.Adapter<CreateTeamMemb
         TextView tagTv;
         ImageButton removeBtn;
 
+        // ViewHolder 뷰 연결
         MemberViewHolder(@NonNull View itemView) {
             super(itemView);
             nameTv = itemView.findViewById(R.id.create_team_list_name);

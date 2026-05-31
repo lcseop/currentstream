@@ -37,3 +37,6 @@ out/
 .vscode/
 
 *serviceAccount*.json
+
+secrets/
+!secrets/firebase/.gitkeep

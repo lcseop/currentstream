@@ -59,6 +59,19 @@ public class GoalService {
         UsersEntity assignee = usersRepository.findById(assignUserId)
                 .orElseThrow(() -> new RuntimeException("Assignee not found"));
 
+        if (text == null || text.isBlank()) {
+            throw new RuntimeException("Goal text required");
+        }
+        if (text.length() > 50) {
+            throw new RuntimeException("Goal text too long");
+        }
+        if (remark == null) {
+            remark = "";
+        }
+        if (remark.length() > 255) {
+            throw new RuntimeException("Remark too long");
+        }
+
         GoalEntity goal = new GoalEntity();
         goal.setGoalText(text);
         goal.setRemark(remark);

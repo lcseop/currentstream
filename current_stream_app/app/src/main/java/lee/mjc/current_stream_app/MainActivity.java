@@ -1,7 +1,6 @@
 package lee.mjc.current_stream_app;
 
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -13,7 +12,6 @@ import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -28,24 +26,18 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
+// 로그인 후 메인 화면 (팀 선택, 내 작업, 최근 현황, FAB)
 public class MainActivity extends AppCompatActivity {
-
-    private static final String BASE_URL = "http://10.0.2.2:8080";
-    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
     private static final int TEAM_LOGS_COLLAPSED_COUNT = 3;
     private static final int TEAM_LOGS_MAX_COUNT = 10;
@@ -55,8 +47,6 @@ public class MainActivity extends AppCompatActivity {
     ImageButton notificationBtn;
     TextView teamSelectorTv;
     TextView notificationBadge;
-
-    private final OkHttpClient client = new OkHttpClient();
 
     private SwipeRefreshLayout swipeRefreshLayout;
     private View mainContentLayout;
@@ -88,16 +78,20 @@ public class MainActivity extends AppCompatActivity {
     private final List<GoalItem> completeGoals = new ArrayList<>();
     private final List<TeamLogItem> teamLogs = new ArrayList<>();
 
-    private GoalAdapter progressAdapter;
-    private GoalAdapter completeAdapter;
+    private MyGoalAdapter progressAdapter;
+    private MyGoalAdapter completeAdapter;
     private TeamLogAdapter teamLogAdapter;
     private FabSpeedDialMenu mainFabMenu;
 
+    // 당겨서 새로고침·팀/목표 로딩 상태
     private int pendingRefreshSections = 0;
     private boolean refreshInProgress = false;
-    private String myUserColor = "#E8E8E8";
+    private boolean isLeader = false;
+    private boolean completeSectionExpanded = false;
+    private Long lastGoalsTeamId = null;
 
     private final Handler logTimeHandler = new Handler(Looper.getMainLooper());
+    // 팀 로그 'N분 전' 표시를 1분마다 갱신
     private final Runnable logTimeRefreshRunnable = new Runnable() {
         @Override
         public void run() {
@@ -108,6 +102,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    // 화면 초기화, 리스트·FAB 연결, uid 확인 후 팀/목표 불러오기
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -149,18 +144,19 @@ public class MainActivity extends AppCompatActivity {
         rvComplete.setLayoutManager(new LinearLayoutManager(this));
         rvTeamLogs.setLayoutManager(new LinearLayoutManager(this));
 
-        progressAdapter = new GoalAdapter(progressGoals);
-        completeAdapter = new GoalAdapter(completeGoals);
+        progressAdapter = new MyGoalAdapter(progressGoals, false, this::onMyGoalClick);
+        completeAdapter = new MyGoalAdapter(completeGoals, true, this::onMyGoalClick);
         teamLogAdapter = new TeamLogAdapter(teamLogs);
         rvProgress.setAdapter(progressAdapter);
         rvComplete.setAdapter(completeAdapter);
         rvTeamLogs.setAdapter(teamLogAdapter);
 
-        // 초기 상태: 진행/완료 목록 펼침
+        // 초기 상태: 진행 중은 펼침, 완료는 접힘
         rvProgress.setVisibility(View.VISIBLE);
         tvProgressToggle.setText("▽");
-        rvComplete.setVisibility(View.VISIBLE);
-        tvCompleteToggle.setText("▽");
+        rvComplete.setVisibility(View.GONE);
+        tvCompleteEmpty.setVisibility(View.GONE);
+        tvCompleteToggle.setText("△");
 
         View layoutProgressHeader = findViewById(R.id.layout_progress_header);
         View layoutCompleteHeader = findViewById(R.id.layout_complete_header);
@@ -202,7 +198,7 @@ public class MainActivity extends AppCompatActivity {
         mainFabMenu = new FabSpeedDialMenu(this, mainFab, Arrays.asList(
                 new FabSpeedDialMenu.Item("팀 만들기", R.drawable.pic_menu_create_team, () ->
                         startActivity(new Intent(this, CreateTeamActivity.class))),
-                new FabSpeedDialMenu.Item("멤버 초대하기", R.drawable.pic_menu_invite, this::openInviteMemberDialog),
+                new FabSpeedDialMenu.Item("팀원 초대하기", R.drawable.pic_menu_invite, this::openInviteMemberDialog),
                 new FabSpeedDialMenu.Item("목표 추가하기", R.drawable.pic_menu_add_goal, this::openAddGoalDialog)
         ));
 
@@ -219,6 +215,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // 세션에 저장된 사용자 태그를 화면에 표시
     private void applyUserTag() {
         String tag = SessionManager.getInstance().getTag();
         if (tag != null && !tag.isEmpty()) {
@@ -229,6 +226,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // 알림 배지 숫자 갱신 (0이면 숨김, 9+ 처리)
     private void updateNotificationBadge(int count) {
         if (notificationBadge == null) return;
         if (count <= 0) {
@@ -239,6 +237,7 @@ public class MainActivity extends AppCompatActivity {
         notificationBadge.setText(count > 9 ? "9+" : String.valueOf(count));
     }
 
+    // 받은 팀 초대 개수 API 조회해서 배지에 반영
     private void loadPendingInviteCount() {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) {
@@ -247,12 +246,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
         Request request = new Request.Builder()
-                .url(BASE_URL + "/api/team/invite")
+                .url(ApiConfig.BASE_URL + "/api/team/invite")
                 .get()
                 .addHeader("uid", uid)
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 // 배지는 실패 시 유지
@@ -268,7 +267,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                     try {
                         JSONObject root = new JSONObject(resBody);
-                        if (!isSuccessResponse(root)) {
+                        if (!ApiHelper.isSuccess(root)) {
                             updateNotificationBadge(0);
                             return;
                         }
@@ -281,6 +280,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // 화면 복귀 시 팀/목표 다시 불러오고 로그 시간 갱신 타이머 시작
     @Override
     protected void onResume() {
         super.onResume();
@@ -291,6 +291,7 @@ public class MainActivity extends AppCompatActivity {
         logTimeHandler.postDelayed(logTimeRefreshRunnable, 60_000L);
     }
 
+    // 화면 나갈 때 로그 시간 타이머 정리, FAB 메뉴 접기
     @Override
     protected void onPause() {
         super.onPause();
@@ -300,6 +301,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // Firebase 로그아웃 후 로그인 화면으로
     private void logoutBtnClick() {
         FirebaseAuth.getInstance().signOut();
         SessionManager.getInstance().clear();
@@ -309,14 +311,23 @@ public class MainActivity extends AppCompatActivity {
         finish();
     }
 
+    // 회원 탈퇴 확인 다이얼로그 띄움
     private void confirmDeleteAccount() {
-        new AlertDialog.Builder(this)
-                .setMessage("정말 회원 탈퇴하시겠습니까?\n탈퇴 시 팀·목표·초대 정보가 삭제되며 복구할 수 없습니다.")
-                .setNegativeButton("취소", null)
-                .setPositiveButton("탈퇴", (d, w) -> deleteAccount())
-                .show();
+        ConfirmCancelDialog dialog = new ConfirmCancelDialog(
+                this,
+                "정말 회원 탈퇴하시겠습니까?\n탈퇴 시 팀·목표·초대 정보가 삭제되며 복구할 수 없습니다.",
+                "탈퇴",
+                "취소"
+        );
+        dialog.setOnConfirmListener(v -> {
+            dialog.dismiss();
+            deleteAccount();
+        });
+        dialog.setOnCancelClickListener(v -> dialog.dismiss());
+        dialog.show();
     }
 
+    // 백엔드 회원 삭제 API 호출 후 Firebase 계정도 삭제
     private void deleteAccount() {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) {
@@ -325,12 +336,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
         Request request = new Request.Builder()
-                .url(BASE_URL + "/api/user")
+                .url(ApiConfig.BASE_URL + "/api/user")
                 .delete()
                 .addHeader("uid", uid)
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> showErrorDialog("회원 탈퇴에 실패했습니다."));
@@ -355,6 +366,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // 탈퇴 완료 후 세션 정리하고 로그인 화면으로
     private void finishAccountDeletion() {
         FirebaseAuth.getInstance().signOut();
         SessionManager.getInstance().clear();
@@ -363,9 +375,7 @@ public class MainActivity extends AppCompatActivity {
         finish();
     }
 
-    /**
-     * uid가 준비되어 있으면 바로, 없으면 /api/user/login을 통해 uid를 받아온 뒤 실행.
-     */
+    // uid 없으면 로그인 API로 받아온 뒤 콜백 실행
     private void ensureUidReady(Runnable onReady) {
         SessionManager sm = SessionManager.getInstance();
         String uid = sm.getUid();
@@ -384,14 +394,14 @@ public class MainActivity extends AppCompatActivity {
             JSONObject json = new JSONObject();
             json.put("idToken", idToken);
 
-            RequestBody body = RequestBody.create(json.toString(), JSON);
+            RequestBody body = RequestBody.create(json.toString(), ApiHelper.JSON);
 
             Request request = new Request.Builder()
-                    .url(BASE_URL + "/api/user/login")
+                    .url(ApiConfig.BASE_URL + "/api/user/login")
                     .post(body)
                     .build();
 
-            client.newCall(request).enqueue(new Callback() {
+            ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
                     runOnUiThread(() -> {
@@ -412,9 +422,9 @@ public class MainActivity extends AppCompatActivity {
 
                         try {
                             JSONObject root = new JSONObject(resBody);
-                            if (!isSuccessResponse(root)) {
+                            if (!ApiHelper.isSuccess(root)) {
                                 stopRefreshing();
-                                showErrorDialog(getApiMessage(root, "로그인에 실패했습니다."));
+                                showErrorDialog(ApiHelper.getMessage(root, "로그인에 실패했습니다."));
                                 return;
                             }
 
@@ -449,11 +459,13 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // 세션 만료 등으로 로그인 화면으로 보냄
     private void moveToLogin() {
         startActivity(new Intent(this, LoginActivity.class));
         finish();
     }
 
+    // API 응답 전 메인 UI 숨기고 스피너만 보여줌
     private void showLoadingState() {
         swipeRefreshLayout.setVisibility(View.VISIBLE);
         swipeRefreshLayout.setRefreshing(true);
@@ -461,6 +473,7 @@ public class MainActivity extends AppCompatActivity {
         emptyLayout.setVisibility(View.GONE);
     }
 
+    // 가입한 팀 없을 때 empty 레이아웃 표시
     private void showEmptyTeamState() {
         cancelRefresh();
         swipeRefreshLayout.setVisibility(View.GONE);
@@ -474,6 +487,7 @@ public class MainActivity extends AppCompatActivity {
         resetGoalsUi();
     }
 
+    // 팀 있을 때 메인 콘텐츠 레이아웃 표시
     private void showTeamContentState() {
         emptyLayout.setVisibility(View.GONE);
         swipeRefreshLayout.setVisibility(View.VISIBLE);
@@ -481,6 +495,7 @@ public class MainActivity extends AppCompatActivity {
         mainFab.setVisibility(View.VISIBLE);
     }
 
+    // 진행 중/완료 목표 섹션 펼치기·접기
     private void toggleGoalSection(boolean progressSection) {
         if (progressSection) {
             boolean expanded = rvProgress.getVisibility() == View.VISIBLE
@@ -494,21 +509,16 @@ public class MainActivity extends AppCompatActivity {
                 rvProgress.setVisibility(willExpand ? View.VISIBLE : View.GONE);
             }
             tvProgressToggle.setText(willExpand ? "▽" : "△");
-        } else {
-            boolean expanded = rvComplete.getVisibility() == View.VISIBLE
-                    || tvCompleteEmpty.getVisibility() == View.VISIBLE;
-            boolean willExpand = !expanded;
-            if (completeGoals.isEmpty()) {
-                rvComplete.setVisibility(View.GONE);
-                tvCompleteEmpty.setVisibility(willExpand ? View.VISIBLE : View.GONE);
-            } else {
-                tvCompleteEmpty.setVisibility(View.GONE);
-                rvComplete.setVisibility(willExpand ? View.VISIBLE : View.GONE);
+            if (willExpand && !progressGoals.isEmpty()) {
+                updateRecyclerViewHeightFully(rvProgress);
             }
-            tvCompleteToggle.setText(willExpand ? "▽" : "△");
+        } else {
+            completeSectionExpanded = !completeSectionExpanded;
+            applyCompleteSectionVisibility();
         }
     }
 
+    // 목표 목록 바뀐 뒤 RecyclerView·빈 상태·토글 아이콘 맞춤
     private void updateGoalsSectionUi() {
         if (progressGoals.isEmpty()) {
             rvProgress.setVisibility(View.GONE);
@@ -516,24 +526,74 @@ public class MainActivity extends AppCompatActivity {
         } else {
             rvProgress.setVisibility(View.VISIBLE);
             tvProgressEmpty.setVisibility(View.GONE);
-            updateNestedRecyclerViewHeight(rvProgress);
+            updateRecyclerViewHeightFully(rvProgress);
         }
 
-        if (completeGoals.isEmpty()) {
-            rvComplete.setVisibility(View.GONE);
-            tvCompleteEmpty.setVisibility(View.VISIBLE);
-        } else {
-            rvComplete.setVisibility(View.VISIBLE);
-            tvCompleteEmpty.setVisibility(View.GONE);
-            updateNestedRecyclerViewHeight(rvComplete);
-        }
+        applyCompleteSectionVisibility();
 
         tvProgressToggle.setText(rvProgress.getVisibility() == View.VISIBLE
                 || tvProgressEmpty.getVisibility() == View.VISIBLE ? "▽" : "△");
-        tvCompleteToggle.setText(rvComplete.getVisibility() == View.VISIBLE
-                || tvCompleteEmpty.getVisibility() == View.VISIBLE ? "▽" : "△");
     }
 
+    // 완료 목록 접힘 상태에 따라 표시 여부 결정
+    private void applyCompleteSectionVisibility() {
+        if (completeGoals.isEmpty()) {
+            rvComplete.setVisibility(View.GONE);
+            tvCompleteEmpty.setVisibility(completeSectionExpanded ? View.VISIBLE : View.GONE);
+        } else if (completeSectionExpanded) {
+            rvComplete.setVisibility(View.VISIBLE);
+            tvCompleteEmpty.setVisibility(View.GONE);
+            updateRecyclerViewHeightFully(rvComplete);
+        } else {
+            rvComplete.setVisibility(View.GONE);
+            tvCompleteEmpty.setVisibility(View.GONE);
+        }
+        tvCompleteToggle.setText(completeSectionExpanded ? "▽" : "△");
+    }
+
+    // nested scroll 안에서 목표 리스트 전체 높이를 잡아줌
+    @SuppressWarnings("unchecked")
+    private void updateRecyclerViewHeightFully(RecyclerView recyclerView) {
+        RecyclerView.Adapter adapter = recyclerView.getAdapter();
+        if (adapter == null || adapter.getItemCount() == 0) return;
+
+        recyclerView.post(() -> {
+            int width = recyclerView.getWidth();
+            if (width <= 0) {
+                recyclerView.post(() -> updateRecyclerViewHeightFully(recyclerView));
+                return;
+            }
+
+            int widthSpec = View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY);
+            int height = 0;
+            float density = getResources().getDisplayMetrics().density;
+            int defaultBottomMargin = Math.round(6 * density);
+
+            for (int i = 0; i < adapter.getItemCount(); i++) {
+                int viewType = adapter.getItemViewType(i);
+                RecyclerView.ViewHolder holder = adapter.createViewHolder(recyclerView, viewType);
+                adapter.onBindViewHolder(holder, i);
+                holder.itemView.measure(
+                        widthSpec,
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                );
+                height += holder.itemView.getMeasuredHeight();
+                ViewGroup.MarginLayoutParams lp =
+                        (ViewGroup.MarginLayoutParams) holder.itemView.getLayoutParams();
+                if (lp != null) {
+                    height += lp.topMargin + lp.bottomMargin;
+                } else {
+                    height += defaultBottomMargin;
+                }
+            }
+
+            ViewGroup.LayoutParams params = recyclerView.getLayoutParams();
+            params.height = height;
+            recyclerView.setLayoutParams(params);
+        });
+    }
+
+    // 팀 로그 리스트 높이를 아이템 수에 맞게 조정
     @SuppressWarnings("unchecked")
     private void updateNestedRecyclerViewHeight(RecyclerView recyclerView) {
         RecyclerView.Adapter adapter = recyclerView.getAdapter();
@@ -563,19 +623,23 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setLayoutParams(params);
     }
 
+    // 당겨서 새로고침 스피너 끔
     private void stopRefreshing() {
         swipeRefreshLayout.setRefreshing(false);
     }
 
+    // 새로고침 시작 플래그 켜고 스피너 표시
     private void markRefreshStarted() {
         refreshInProgress = true;
         swipeRefreshLayout.setRefreshing(true);
     }
 
+    // 목표·로그 등 여러 API가 끝날 때까지 새로고침 유지할 개수 설정
     private void beginRefreshSections(int count) {
         pendingRefreshSections = count;
     }
 
+    // API 하나 끝날 때마다 호출, 다 끝나면 스피너 끄고 초대 배지 갱신
     private void finishRefreshSection() {
         if (!refreshInProgress) return;
         pendingRefreshSections--;
@@ -586,12 +650,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // 새로고침 중단 (에러 시 등)
     private void cancelRefresh() {
         refreshInProgress = false;
         pendingRefreshSections = 0;
         stopRefreshing();
     }
 
+    // 팀 없음/팀 변경 시 목표·로그 UI 초기화
     private void resetGoalsUi() {
         progressGoals.clear();
         completeGoals.clear();
@@ -608,7 +674,9 @@ public class MainActivity extends AppCompatActivity {
         tvProgressEmpty.setVisibility(View.GONE);
         tvCompleteEmpty.setVisibility(View.GONE);
         tvProgressToggle.setText("▽");
-        tvCompleteToggle.setText("▽");
+        tvCompleteToggle.setText("△");
+        completeSectionExpanded = false;
+        lastGoalsTeamId = null;
 
         teamLogs.clear();
         allTeamLogs.clear();
@@ -621,29 +689,42 @@ public class MainActivity extends AppCompatActivity {
         tvTeamLogsEmpty.setVisibility(View.GONE);
     }
 
+    // 내 목표 탭하면 상세 다이얼로그 (수정 후 목록 다시 로드)
+    private void onMyGoalClick(GoalItem item) {
+        TeamGoalItem goal = new TeamGoalItem(
+                item.id,
+                item.userId,
+                item.goalText,
+                item.remark,
+                item.status,
+                item.goalEndDate
+        );
+        GoalDetailDialog.show(
+                this,
+                ApiHelper.CLIENT,
+                goal,
+                isLeader,
+                () -> {
+                    Long teamId = SessionManager.getInstance().getCurrentTeamId();
+                    if (teamId != null) {
+                        loadGoalsForTeam(teamId);
+                        loadTeamLogs(teamId);
+                    }
+                }
+        );
+    }
+
+    // 에러 메시지 공통 다이얼로그
     private void showErrorDialog(String message) {
-        CommonDialog dialog = new CommonDialog(this, message, "확인");
-        dialog.setOnConfirmListener(v -> dialog.dismiss());
-        dialog.show();
+        CommonDialog.showError(this, message);
     }
 
-    private boolean isSuccessResponse(JSONObject root) {
-        String code = root.optString("responseCode", "");
-        return code.endsWith("_ok");
-    }
-
-    private String getApiMessage(JSONObject root, String fallback) {
-        String message = root.optString("message", "");
-        return message.isEmpty() ? fallback : message;
-    }
-
-    /**
-     * 초대 목록 바텀시트 열기
-     */
+    // 알림 버튼 → 받은 초대 바텀시트
     private void openInviteBottomSheet() {
         ensureUidReady(this::showInviteBottomSheetInternal);
     }
 
+    // 초대 목록 바텀시트 UI 구성하고 API로 목록 로드
     private void showInviteBottomSheetInternal() {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) return;
@@ -685,12 +766,12 @@ public class MainActivity extends AppCompatActivity {
 
         // 서버에서 초대 목록 가져오기
         Request request = new Request.Builder()
-                .url(BASE_URL + "/api/team/invite")
+                .url(ApiConfig.BASE_URL + "/api/team/invite")
                 .get()
                 .addHeader("uid", uid)
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> showErrorDialog("초대 목록을 불러오지 못했습니다."));
@@ -707,8 +788,8 @@ public class MainActivity extends AppCompatActivity {
                         }
 
                         JSONObject root = new JSONObject(resBody);
-                        if (!isSuccessResponse(root)) {
-                            showErrorDialog(getApiMessage(root, "초대 목록을 불러오지 못했습니다."));
+                        if (!ApiHelper.isSuccess(root)) {
+                            showErrorDialog(ApiHelper.getMessage(root, "초대 목록을 불러오지 못했습니다."));
                             return;
                         }
 
@@ -733,9 +814,7 @@ public class MainActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    /**
-     * 팀 목록 + 현재 팀 목표/진행률 로딩
-     */
+    // 팀 목록 API 후 현재 팀 목표·로그 로드
     private void loadTeamsAndGoals() {
         markRefreshStarted();
 
@@ -746,12 +825,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
         Request request = new Request.Builder()
-                .url(BASE_URL + "/api/team")
+                .url(ApiConfig.BASE_URL + "/api/team")
                 .get()
                 .addHeader("uid", uid)
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> {
@@ -778,8 +857,8 @@ public class MainActivity extends AppCompatActivity {
                         }
 
                         JSONObject root = new JSONObject(resBody);
-                        if (!isSuccessResponse(root)) {
-                            showErrorDialog(getApiMessage(root, "팀 목록을 불러오지 못했습니다."));
+                        if (!ApiHelper.isSuccess(root)) {
+                            showErrorDialog(ApiHelper.getMessage(root, "팀 목록을 불러오지 못했습니다."));
                             if (teamList.isEmpty()) {
                                 showEmptyTeamState();
                             }
@@ -787,7 +866,7 @@ public class MainActivity extends AppCompatActivity {
                         }
 
                         teamList.clear();
-                        teamList.addAll(parseTeams(root.optJSONArray("responseData")));
+                        teamList.addAll(TeamItem.parseList(resBody));
 
                         if (teamList.isEmpty()) {
                             showEmptyTeamState();
@@ -819,29 +898,8 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private List<TeamItem> parseTeams(JSONArray arr) {
-        List<TeamItem> result = new ArrayList<>();
-        if (arr == null) return result;
 
-        for (int i = 0; i < arr.length(); i++) {
-            try {
-                JSONObject obj = arr.getJSONObject(i);
-                if (!obj.has("id")) continue;
-
-                long id = obj.getLong("id");
-                String teamName = obj.optString("teamName", "이름 없는 팀");
-                String endDate = obj.has("endDate") && !obj.isNull("endDate")
-                        ? obj.optString("endDate", null)
-                        : null;
-                long leaderId = obj.optLong("leaderId", -1);
-
-                result.add(new TeamItem(id, teamName, endDate, leaderId));
-            } catch (Exception ignored) {
-            }
-        }
-        return result;
-    }
-
+    // 초대 JSON 배열을 InviteItem 리스트로 변환
     private List<InviteItem> parseInvites(JSONArray arr) {
         List<InviteItem> result = new ArrayList<>();
         if (arr == null) return result;
@@ -867,6 +925,7 @@ public class MainActivity extends AppCompatActivity {
         return result;
     }
 
+    // teamList에서 id로 팀 찾기
     private TeamItem findTeamById(Long id) {
         if (id == null) return null;
         for (TeamItem t : teamList) {
@@ -875,31 +934,35 @@ public class MainActivity extends AppCompatActivity {
         return null;
     }
 
+    // 상단 팀 이름·마감 D-day 표시
     private void applyTeamHeader(TeamItem team) {
         teamSelectorTv.setText(team.teamName);
-        tvDeadlineDday.setText(formatDday(team.endDate));
+        tvDeadlineDday.setText(DateTimeUtil.formatDday(team.endDate));
     }
 
-    /**
-     * 선택된 팀의 목표 목록을 받아서 진행/완료 UI 갱신
-     */
+    // 멤버·목표 API로 진행률·내 작업 목록 갱신 (팀 바꾸면 완료 목록은 다시 접어 둠)
     private void loadGoalsForTeam(long teamId) {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) return;
 
+        if (lastGoalsTeamId == null || lastGoalsTeamId != teamId) {
+            completeSectionExpanded = false;
+            lastGoalsTeamId = teamId;
+        }
+
         Request membersRequest = new Request.Builder()
-                .url(BASE_URL + "/api/team/" + teamId + "/members")
+                .url(ApiConfig.BASE_URL + "/api/team/" + teamId + "/members")
                 .get()
                 .addHeader("uid", uid)
                 .build();
 
         Request goalsRequest = new Request.Builder()
-                .url(BASE_URL + "/api/goal/team/" + teamId + "/all")
+                .url(ApiConfig.BASE_URL + "/api/goal/team/" + teamId + "/all")
                 .get()
                 .addHeader("uid", uid)
                 .build();
 
-        client.newCall(membersRequest).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(membersRequest).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> {
@@ -919,7 +982,7 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
-                client.newCall(goalsRequest).enqueue(new Callback() {
+                ApiHelper.CLIENT.newCall(goalsRequest).enqueue(new Callback() {
                     @Override
                     public void onFailure(Call call, IOException e) {
                         runOnUiThread(() -> {
@@ -940,18 +1003,18 @@ public class MainActivity extends AppCompatActivity {
                                 }
 
                                 JSONObject goalsRoot = new JSONObject(goalsBody);
-                                if (!isSuccessResponse(goalsRoot)) {
-                                    showErrorDialog(getApiMessage(goalsRoot, "목표 목록을 불러오지 못했습니다."));
+                                if (!ApiHelper.isSuccess(goalsRoot)) {
+                                    showErrorDialog(ApiHelper.getMessage(goalsRoot, "목표 목록을 불러오지 못했습니다."));
                                     finishRefreshSection();
                                     return;
                                 }
 
                                 List<TeamMemberItem> members = TeamMemberItem.parseList(membersBody);
                                 Long myUserId = SessionManager.getInstance().getUserId();
-                                myUserColor = "#E8E8E8";
+                                isLeader = false;
                                 for (TeamMemberItem member : members) {
                                     if (myUserId != null && myUserId == member.userId) {
-                                        myUserColor = member.userColor;
+                                        isLeader = member.leader;
                                         break;
                                     }
                                 }
@@ -1000,6 +1063,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // 목표 JSON 배열 파싱
     private List<GoalItem> parseGoals(JSONArray arr) {
         List<GoalItem> result = new ArrayList<>();
         if (arr == null) return result;
@@ -1025,81 +1089,24 @@ public class MainActivity extends AppCompatActivity {
         return result;
     }
 
-    private String formatDday(String endDate) {
-        if (endDate == null || endDate.isEmpty()) return "D-?";
-        try {
-            LocalDate end = null;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                end = LocalDate.parse(endDate);
-            }
-            LocalDate today = null;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                today = LocalDate.now();
-            }
-            long days = 0;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                days = ChronoUnit.DAYS.between(today, end);
-            }
-            return days >= 0 ? ("D-" + days) : ("D+" + Math.abs(days));
-        } catch (Exception e) {
-            return "D-?";
-        }
-    }
-
-    private String formatRemainingDays(String endDate) {
-        if (endDate == null || endDate.isEmpty()) return "";
-        try {
-            LocalDate end = null;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                end = LocalDate.parse(endDate);
-            }
-            LocalDate today = null;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                today = LocalDate.now();
-            }
-            long days = 0;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                days = ChronoUnit.DAYS.between(today, end);
-            }
-            return days >= 0 ? (days + "일 남음") : (Math.abs(days) + "일 지남");
-        } catch (Exception e) {
-            return "";
-        }
-    }
-
-    /**
-     * 팀 목록 바텀시트 열기
-     */
+    // 팀 선택 바텀시트 (팀 바꾸면 목표·로그 다시 로드)
     private void openTeamsBottomSheet() {
-        BottomSheetDialog dialog = new BottomSheetDialog(this);
-        View view = LayoutInflater.from(this).inflate(R.layout.main_bottom_sheet_teams, null);
-        dialog.setContentView(view);
-
-        RecyclerView rvTeams = view.findViewById(R.id.teams_recycler);
-        Button createTeamBtn = view.findViewById(R.id.teams_sheet_create_btn);
-        rvTeams.setLayoutManager(new LinearLayoutManager(this));
-
-        if (teamList.isEmpty()) {
-            rvTeams.setVisibility(View.GONE);
-        } else {
-            rvTeams.setVisibility(View.VISIBLE);
-            rvTeams.setAdapter(new TeamBottomSheetAdapter(teamList, selectedTeam -> {
-                SessionManager.getInstance().setCurrentTeamId(selectedTeam.id);
-                applyTeamHeader(selectedTeam);
-                loadGoalsForTeam(selectedTeam.id);
-                loadTeamLogs(selectedTeam.id);
-                dialog.dismiss();
-            }));
-        }
-
-        createTeamBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            startActivity(new Intent(this, CreateTeamActivity.class));
-        });
-
-        dialog.show();
+        Long currentTeamId = SessionManager.getInstance().getCurrentTeamId();
+        TeamPickerBottomSheet.show(
+                this,
+                teamList,
+                currentTeamId,
+                selectedTeam -> {
+                    SessionManager.getInstance().setCurrentTeamId(selectedTeam.id);
+                    applyTeamHeader(selectedTeam);
+                    loadGoalsForTeam(selectedTeam.id);
+                    loadTeamLogs(selectedTeam.id);
+                },
+                () -> startActivity(new Intent(this, CreateTeamActivity.class))
+        );
     }
 
+    // FAB 목표 추가 → 멤버 조회 후 AddGoalDialog
     private void openAddGoalDialog() {
         Long teamId = SessionManager.getInstance().getCurrentTeamId();
         if (teamId == null) {
@@ -1111,12 +1118,12 @@ public class MainActivity extends AppCompatActivity {
         if (uid == null || uid.isEmpty()) return;
 
         Request request = new Request.Builder()
-                .url(BASE_URL + "/api/team/" + teamId + "/members")
+                .url(ApiConfig.BASE_URL + "/api/team/" + teamId + "/members")
                 .get()
                 .addHeader("uid", uid)
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> showErrorDialog("멤버 정보를 불러오지 못했습니다."));
@@ -1138,7 +1145,7 @@ public class MainActivity extends AppCompatActivity {
                             return;
                         }
 
-                        AddGoalDialog.show(MainActivity.this, client, teamId, eligible, null,
+                        AddGoalDialog.show(MainActivity.this, ApiHelper.CLIENT, teamId, eligible, null,
                                 new AddGoalDialog.OnComplete() {
                                     @Override
                                     public void onSuccess() {
@@ -1159,6 +1166,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // 팀장은 전원, 일반 멤버는 본인만 목표 추가 대상
     private List<TeamMemberItem> getGoalAddEligibleMembers(List<TeamMemberItem> members) {
         List<TeamMemberItem> eligible = new ArrayList<>();
         Long myUserId = SessionManager.getInstance().getUserId();
@@ -1171,6 +1179,7 @@ public class MainActivity extends AppCompatActivity {
         return eligible;
     }
 
+    // FAB 팀원 초대 (팀장만)
     private void openInviteMemberDialog() {
         Long teamId = SessionManager.getInstance().getCurrentTeamId();
         if (teamId == null) {
@@ -1192,19 +1201,21 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // 현재 선택 팀의 팀장인지 확인
     private boolean isCurrentTeamLeader() {
         Long myUserId = SessionManager.getInstance().getUserId();
         TeamItem current = findTeamById(SessionManager.getInstance().getCurrentTeamId());
         return myUserId != null && current != null && myUserId == current.leaderId;
     }
 
+    // 팀 활동 로그 API 호출
     private void loadTeamLogs(long teamId) {
         Request request = new Request.Builder()
-                .url(BASE_URL + "/api/team/log/" + teamId)
+                .url(ApiConfig.BASE_URL + "/api/team/log/" + teamId)
                 .get()
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> {
@@ -1223,7 +1234,7 @@ public class MainActivity extends AppCompatActivity {
                             return;
                         }
                         JSONObject root = new JSONObject(resBody);
-                        if (!isSuccessResponse(root)) {
+                        if (!ApiHelper.isSuccess(root)) {
                             updateTeamLogsUi(new ArrayList<>());
                             return;
                         }
@@ -1238,6 +1249,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // 로그 JSON 파싱 (최대 10개)
     private List<TeamLogItem> parseTeamLogs(JSONArray arr) {
         List<TeamLogItem> result = new ArrayList<>();
         if (arr == null) return result;
@@ -1265,6 +1277,7 @@ public class MainActivity extends AppCompatActivity {
         return result;
     }
 
+    // 로그 데이터 받아서 접힌 상태로 목록 갱신
     private void updateTeamLogsUi(List<TeamLogItem> parsedLogs) {
         allTeamLogs.clear();
         allTeamLogs.addAll(parsedLogs);
@@ -1272,6 +1285,7 @@ public class MainActivity extends AppCompatActivity {
         refreshTeamLogsDisplay();
     }
 
+    // 접힘/펼침에 따라 보여줄 로그 개수 결정
     private void refreshTeamLogsDisplay() {
         teamLogs.clear();
         if (allTeamLogs.isEmpty()) {
@@ -1300,21 +1314,22 @@ public class MainActivity extends AppCompatActivity {
         rvTeamLogs.post(() -> updateNestedRecyclerViewHeight(rvTeamLogs));
     }
 
+    // 초대 수락/거절 API 호출
     private void handleInviteAction(long inviteId, boolean accept, Runnable onSuccess) {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) return;
 
         String path = accept ? "accept" : "reject";
-        String url = BASE_URL + "/api/team/invite/" + inviteId + "/" + path;
+        String url = ApiConfig.BASE_URL + "/api/team/invite/" + inviteId + "/" + path;
 
-        RequestBody body = RequestBody.create("{}", JSON);
+        RequestBody body = RequestBody.create("{}", ApiHelper.JSON);
         Request request = new Request.Builder()
                 .url(url)
                 .post(body)
                 .addHeader("uid", uid)
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> showErrorDialog("초대 처리에 실패했습니다."));
@@ -1331,189 +1346,5 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
         });
-    }
-
-    // 초대 목록을 위한 간단한 모델
-    static class InviteItem {
-        long id;
-        long teamId;
-        String teamName;
-        String inviterName;
-        String message;
-
-        InviteItem(long id, long teamId, String teamName, String inviterName, String message) {
-            this.id = id;
-            this.teamId = teamId;
-            this.teamName = teamName;
-            this.inviterName = inviterName;
-            this.message = message;
-        }
-    }
-
-    // 팀 목록 모델
-    static class TeamItem {
-        long id;
-        String teamName;
-        String endDate;
-        long leaderId;
-
-        TeamItem(long id, String teamName, String endDate, long leaderId) {
-            this.id = id;
-            this.teamName = teamName;
-            this.endDate = endDate;
-            this.leaderId = leaderId;
-        }
-    }
-
-    // 목표(작업) 모델
-    static class GoalItem {
-        long id;
-        long userId;
-        String goalText;
-        int status;
-        String remark;
-        String goalEndDate;
-
-        GoalItem(long id, long userId, String goalText, int status, String remark, String goalEndDate) {
-            this.id = id;
-            this.userId = userId;
-            this.goalText = goalText;
-            this.status = status;
-            this.remark = remark;
-            this.goalEndDate = goalEndDate;
-        }
-    }
-
-    /**
-     * 목표(진행/완료) RecyclerView Adapter
-     */
-    private class GoalAdapter extends RecyclerView.Adapter<GoalAdapter.GoalVH> {
-        private final List<GoalItem> goals;
-
-        GoalAdapter(List<GoalItem> goals) {
-            this.goals = goals;
-        }
-
-        @Override
-        public GoalVH onCreateViewHolder(android.view.ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.main_item_my_task, parent, false);
-            return new GoalVH(v);
-        }
-
-        @Override
-        public void onBindViewHolder(GoalVH holder, int position) {
-            GoalItem item = goals.get(position);
-            holder.nameTv.setText(item.goalText);
-            holder.deadlineTv.setText(formatRemainingDays(item.goalEndDate));
-            if (isOverdue(item.goalEndDate)) {
-                holder.deadlineTv.setTextColor(0xFFE53935);
-            } else {
-                holder.deadlineTv.setTextColor(0xFFAAAAAA);
-            }
-
-            int baseColor = ColorUtil.parseColorOrDefault(myUserColor, 0xFFE8E8E8);
-            ColorUtil.applyRoundedBackground(holder.itemView, myUserColor, 0.32f, 10);
-        }
-
-        private boolean isOverdue(String endDate) {
-            if (endDate == null || endDate.isEmpty()) return false;
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    LocalDate end = LocalDate.parse(endDate);
-                    return end.isBefore(LocalDate.now());
-                }
-            } catch (Exception ignored) {
-            }
-            return false;
-        }
-
-        @Override
-        public int getItemCount() {
-            return goals.size();
-        }
-
-        class GoalVH extends RecyclerView.ViewHolder {
-            TextView nameTv;
-            TextView deadlineTv;
-
-            GoalVH(View itemView) {
-                super(itemView);
-                nameTv = itemView.findViewById(R.id.item_task_name);
-                deadlineTv = itemView.findViewById(R.id.item_task_deadline);
-            }
-        }
-    }
-
-    interface OnTeamSelected {
-        void onSelected(TeamItem team);
-    }
-
-    /**
-     * 팀 목록 바텀시트 Adapter
-     */
-    private static class TeamBottomSheetAdapter extends RecyclerView.Adapter<TeamBottomSheetAdapter.TeamVH> {
-        private final List<TeamItem> items;
-        private final OnTeamSelected listener;
-
-        TeamBottomSheetAdapter(List<TeamItem> items, OnTeamSelected listener) {
-            this.items = items;
-            this.listener = listener;
-        }
-
-        @Override
-        public TeamVH onCreateViewHolder(android.view.ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.main_bottom_sheet_team_item, parent, false);
-            return new TeamVH(v);
-        }
-
-        @Override
-        public void onBindViewHolder(TeamVH holder, int position) {
-            TeamItem item = items.get(position);
-            holder.nameTv.setText(item.teamName);
-            holder.deadlineTv.setText(formatDday(item.endDate));
-
-            holder.itemView.setOnClickListener(v -> {
-                if (listener != null) listener.onSelected(item);
-            });
-        }
-
-        @Override
-        public int getItemCount() {
-            return items.size();
-        }
-
-        static class TeamVH extends RecyclerView.ViewHolder {
-            TextView nameTv;
-            TextView deadlineTv;
-
-            TeamVH(View itemView) {
-                super(itemView);
-                nameTv = itemView.findViewById(R.id.item_team_name);
-                deadlineTv = itemView.findViewById(R.id.item_team_deadline);
-            }
-        }
-
-        private static String formatDday(String endDate) {
-            if (endDate == null || endDate.isEmpty()) return "D-?";
-            try {
-                LocalDate end = null;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    end = LocalDate.parse(endDate);
-                }
-                LocalDate today = null;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    today = LocalDate.now();
-                }
-                long days = 0;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    days = ChronoUnit.DAYS.between(today, end);
-                }
-                return days >= 0 ? ("D-" + days) : ("D+" + Math.abs(days));
-            } catch (Exception e) {
-                return "D-?";
-            }
-        }
     }
 }

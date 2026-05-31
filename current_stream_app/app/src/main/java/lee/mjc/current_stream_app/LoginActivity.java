@@ -34,12 +34,11 @@ import java.net.HttpCookie;
 
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
+// 이메일/구글 로그인 화면
 public class LoginActivity extends AppCompatActivity {
 
     FrameLayout loadingOverlay;
@@ -61,6 +60,7 @@ public class LoginActivity extends AppCompatActivity {
                     }
             );
 
+    // 로그인 화면 초기화 (이메일/구글 로그인 버튼 설정)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -174,22 +174,18 @@ public class LoginActivity extends AppCompatActivity {
     private void sendTokenToServer(String idToken) {
 
         // OkHttp를 이용해 서버로 보내기 위해 객체 생성
-        OkHttpClient client = new OkHttpClient();
         // token을 json 형태로 담음
         String json = "{\"idToken\":\"" + idToken + "\"}";
         // json을 requestBody로 변환
-        RequestBody body = RequestBody.create(
-                json,
-                MediaType.parse("application/json")
-        );
+        RequestBody body = RequestBody.create(json, ApiHelper.JSON);
         // requestBody를 url을 통해 post 메소드로 요청함
         Request request = new Request.Builder()
-                .url("http://10.0.2.2:8080/api/user/login")
+                .url(ApiConfig.BASE_URL + "/api/user/login")
                 .post(body)
                 .build();
 
         // 요청 받은 응답을 콜백으로 받음
-        client.newCall(request).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
             // 실패 시
             @Override
             public void onFailure(Call call, IOException e) {
@@ -258,6 +254,7 @@ public class LoginActivity extends AppCompatActivity {
         finish();
     }
 
+    // 로그인 응답에서 uid, tag, userId를 SessionManager에 저장
     private void saveUserInfoFromLogin(String responseBody) {
         try {
             JSONObject root = new JSONObject(responseBody);
@@ -274,10 +271,7 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * 구글 로그인 결과를 처리하는 메소드
-     * @param data
-     */
+    // 구글 로그인 결과를 처리하고 Firebase 인증으로 넘김
     private void handleGoogleResult(Intent data) {
         // 구글 로그인 결과를 가져옴
         Task<GoogleSignInAccount> task =
@@ -292,10 +286,7 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * 구글 로그인 결과를 Firebase에 전달하는 메소드
-     * @param idToken
-     */
+    // 구글 ID 토큰으로 Firebase 로그인 후 서버에 토큰 전송
     private void firebaseAuthWithGoogle(String idToken) {
 
         // Google 로그인에서 받은 ID 토큰으로 Firebase 인증에 사용할 Credential 생성

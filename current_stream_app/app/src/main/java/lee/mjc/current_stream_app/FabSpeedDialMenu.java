@@ -20,9 +20,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * FAB 스피드 다이얼 (+ 버튼 위로 미니 FAB + 라벨)
- */
+// FAB 스피드 다이얼 (+ 버튼 위로 미니 FAB + 라벨)
 public class FabSpeedDialMenu {
 
     private static final int MINI_BUTTON_SIZE_DP = 50;
@@ -33,6 +31,7 @@ public class FabSpeedDialMenu {
         @DrawableRes public final int iconResId;
         public final Runnable action;
 
+        // 스피드 다이얼 메뉴 항목 (라벨, 아이콘, 클릭 액션)
         public Item(String label, @DrawableRes int iconResId, Runnable action) {
             this.label = label;
             this.iconResId = iconResId;
@@ -47,6 +46,7 @@ public class FabSpeedDialMenu {
     private final LinearLayout menuContainer;
     private boolean expanded = false;
 
+    // FAB 스피드 다이얼 메뉴 초기화 (오버레이, 메뉴 항목, 토글)
     public FabSpeedDialMenu(AppCompatActivity activity, FloatingActionButton mainFab, List<Item> items) {
         this.activity = activity;
         this.mainFab = mainFab;
@@ -84,6 +84,7 @@ public class FabSpeedDialMenu {
         mainFab.setOnClickListener(v -> toggle());
     }
 
+    // FAB 위쪽에 메뉴 컨테이너 위치 조정
     private void positionMenuAboveFab() {
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) menuContainer.getLayoutParams();
         int fabMargin = dp(24);
@@ -92,6 +93,7 @@ public class FabSpeedDialMenu {
         menuContainer.setLayoutParams(params);
     }
 
+    // 메뉴 항목들을 FAB 위에 역순으로 배치
     private void buildMenuItems() {
         menuContainer.removeAllViews();
         for (int i = items.size() - 1; i >= 0; i--) {
@@ -99,6 +101,7 @@ public class FabSpeedDialMenu {
         }
     }
 
+    // 라벨 + 미니 원형 버튼 한 줄 생성
     private View createMenuRow(Item item) {
         LinearLayout row = new LinearLayout(activity);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -147,6 +150,7 @@ public class FabSpeedDialMenu {
         return row;
     }
 
+    // 메뉴 펼침/접힘 토글
     private void toggle() {
         if (expanded) {
             collapse();
@@ -155,6 +159,7 @@ public class FabSpeedDialMenu {
         }
     }
 
+    // 스피드 다이얼 메뉴 펼치기 (애니메이션, FAB 아이콘 X로 변경)
     private void expand() {
         expanded = true;
         positionMenuAboveFab();
@@ -173,6 +178,7 @@ public class FabSpeedDialMenu {
         mainFab.animate().rotation(0f).setDuration(200).start();
     }
 
+    // 스피드 다이얼 메뉴 접기
     public void collapse() {
         if (!expanded) return;
         expanded = false;
@@ -188,6 +194,7 @@ public class FabSpeedDialMenu {
         mainFab.animate().rotation(0f).setDuration(160).start();
     }
 
+    // 오버레이·메뉴·FAB를 최상위로 올림
     private void bringFabToFront() {
         ViewGroup content = activity.findViewById(android.R.id.content);
         content.bringChildToFront(overlay);
@@ -197,6 +204,7 @@ public class FabSpeedDialMenu {
         }
     }
 
+    // dp 값을 px로 변환
     private int dp(int value) {
         float density = activity.getResources().getDisplayMetrics().density;
         return Math.round(value * density);

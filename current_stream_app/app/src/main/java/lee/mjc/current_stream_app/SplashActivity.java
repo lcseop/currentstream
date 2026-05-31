@@ -1,6 +1,5 @@
 package lee.mjc.current_stream_app;
 
-import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
 
@@ -11,9 +10,18 @@ import com.google.firebase.auth.FirebaseUser;
 
 import org.json.JSONObject;
 
+import java.io.IOException;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+
 // 앱의 시작을 알리는 액티비티
 public class SplashActivity extends AppCompatActivity {
 
+    // Firebase 로그인 상태 확인 후 자동 로그인 또는 로그인 화면 이동
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -37,29 +45,25 @@ public class SplashActivity extends AppCompatActivity {
         }
     }
 
+    // Firebase 토큰을 서버에 보내 자동 로그인 시도
     private void sendTokenToServer(String idToken) {
-        okhttp3.OkHttpClient client = new okhttp3.OkHttpClient();
-
         String json = "{\"idToken\":\"" + idToken + "\"}";
 
-        okhttp3.RequestBody body = okhttp3.RequestBody.create(
-                json,
-                okhttp3.MediaType.parse("application/json")
-        );
+        RequestBody body = RequestBody.create(json, ApiHelper.JSON);
 
-        okhttp3.Request request = new okhttp3.Request.Builder()
-                .url("http://10.0.2.2:8080/api/user/login")
+        Request request = new Request.Builder()
+                .url(ApiConfig.BASE_URL + "/api/user/login")
                 .post(body)
                 .build();
 
-        client.newCall(request).enqueue(new okhttp3.Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
             @Override
-            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+            public void onFailure(Call call, IOException e) {
                 moveToLogin();
             }
 
             @Override
-            public void onResponse(okhttp3.Call call, okhttp3.Response response) throws java.io.IOException {
+            public void onResponse(Call call, Response response) throws IOException {
                 String responseBody = response.body() != null ? response.body().string() : "";
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
@@ -73,6 +77,7 @@ public class SplashActivity extends AppCompatActivity {
         });
     }
 
+    // 로그인 응답에서 uid, tag, userId를 SessionManager에 저장
     private void saveUserInfoFromLogin(String responseBody) {
         try {
             JSONObject root = new JSONObject(responseBody);
@@ -89,11 +94,13 @@ public class SplashActivity extends AppCompatActivity {
         }
     }
 
+    // 로그인 성공 시 MainActivity로 이동
     private void moveToMain() {
         startActivity(new Intent(this, MainActivity.class));
         finish();
     }
 
+    // 로그인 실패·미로그인 시 LoginActivity로 이동
     private void moveToLogin() {
         startActivity(new Intent(this, LoginActivity.class));
         finish();

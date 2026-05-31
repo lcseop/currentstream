@@ -72,7 +72,7 @@
             android:layout_width="match_parent"
             android:layout_height="44dp"
             android:layout_marginTop="16dp"
-            android:text="완료됨"
+            android:text="목표 달성했어요!"
             android:textAllCaps="false"
             android:visibility="gone"
             app:cornerRadius="12dp"

@@ -1,5 +1,6 @@
 package lee.mjc.current_stream_app;
 
+import android.content.Intent;
 import android.app.DatePickerDialog;
 import android.app.Dialog;
 import android.graphics.Color;
@@ -18,7 +19,6 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -43,20 +43,17 @@ import java.util.Map;
 
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
+// 팀 상세 화면 (멤버별 목표, FAB, 팀 설정)
 public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapter.Listener {
 
     public static final String EXTRA_TEAM_ID = "teamId";
 
-    private static final String BASE_URL = "http://10.0.2.2:8080";
-    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-
     private ImageButton backBtn;
+    private ImageButton editBtn;
     private TextView titleTv;
     private TextView deadlineTv;
     private TextView percentTv;
@@ -67,7 +64,6 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
     private SwipeRefreshLayout swipeRefreshLayout;
     private FabSpeedDialMenu teamsFabMenu;
 
-    private final OkHttpClient client = new OkHttpClient();
     private final List<TeamMemberItem> members = new ArrayList<>();
     private TeamMemberAdapter memberAdapter;
 
@@ -77,16 +73,39 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
     private long leaderId;
     private boolean isLeader;
 
+    // 세션에서 내 유저 ID 가져오기
     private Long getMyUserId() {
         return SessionManager.getInstance().getUserId();
     }
 
+    // 팀장 여부에 따라 하단 버튼·수정 버튼 갱신
     private void refreshLeaderState() {
         Long myUserId = getMyUserId();
         isLeader = myUserId != null && myUserId == leaderId;
         bottomBtn.setText(isLeader ? "팀 삭제" : "팀 나가기");
+        if (editBtn != null) {
+            editBtn.setVisibility(isLeader ? View.VISIBLE : View.GONE);
+        }
     }
 
+    // 바텀시트로 다른 팀 고르기
+    private void openTeamPicker() {
+        TeamPickerBottomSheet.loadAndShow(
+                this,
+                teamId,
+                selectedTeam -> {
+                    if (selectedTeam.id == teamId) {
+                        return;
+                    }
+                    teamId = selectedTeam.id;
+                    SessionManager.getInstance().setCurrentTeamId(teamId);
+                    loadTeamData(false);
+                },
+                () -> startActivity(new Intent(this, CreateTeamActivity.class))
+        );
+    }
+
+    // 멤버 목록에서 내 tag로 userId 맞춰두기
     private void syncMyUserIdFromMembers(List<TeamMemberItem> parsedMembers) {
         if (getMyUserId() != null) return;
         String myTag = SessionManager.getInstance().getTag();
@@ -99,12 +118,14 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         }
     }
 
+    // 화면 초기화하고 팀 데이터 로드 준비
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_teams);
 
         backBtn = findViewById(R.id.teams_header_back);
+        editBtn = findViewById(R.id.teams_header_edit);
         titleTv = findViewById(R.id.teams_header_title);
         deadlineTv = findViewById(R.id.teams_deadline);
         percentTv = findViewById(R.id.teams_total_percent);
@@ -130,17 +151,21 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         }
 
         backBtn.setOnClickListener(v -> finish());
-        titleTv.setOnClickListener(v -> showEditTeamDialog());
+        titleTv.setOnClickListener(v -> openTeamPicker());
+        if (editBtn != null) {
+            editBtn.setOnClickListener(v -> showEditTeamDialog());
+        }
         bottomBtn.setOnClickListener(v -> onBottomButtonClick());
 
         teamsFabMenu = new FabSpeedDialMenu(this, teamsFab, Arrays.asList(
-                new FabSpeedDialMenu.Item("멤버 초대하기", R.drawable.pic_menu_invite, this::openInviteMemberDialog),
+                new FabSpeedDialMenu.Item("팀원 초대하기", R.drawable.pic_menu_invite, this::openInviteMemberDialog),
                 new FabSpeedDialMenu.Item("목표 추가하기", R.drawable.pic_menu_add_goal, () -> showAddGoalDialog(null))
         ));
 
         swipeRefreshLayout.setOnRefreshListener(() -> loadTeamData(true));
     }
 
+    // FAB 메뉴 접기
     @Override
     protected void onPause() {
         super.onPause();
@@ -149,6 +174,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         }
     }
 
+    // 팀장이면 멤버 초대 다이얼로그 열기
     private void openInviteMemberDialog() {
         if (!isLeader) {
             showErrorDialog("팀장만 멤버를 초대할 수 있습니다.", null);
@@ -165,6 +191,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         });
     }
 
+    // 목표 추가 가능한 멤버만 걸러내기
     private List<TeamMemberItem> getGoalAddEligibleMembers() {
         List<TeamMemberItem> eligible = new ArrayList<>();
         Long myUserId = getMyUserId();
@@ -176,6 +203,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         return eligible;
     }
 
+    // 화면 돌아오면 팀 데이터 다시 불러오기
     @Override
     protected void onResume() {
         super.onResume();
@@ -184,10 +212,12 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         }
     }
 
+    // 팀 정보 로드 (당겨서 새로고침 아님)
     private void loadTeamData() {
         loadTeamData(false);
     }
 
+    // API로 팀 정보 불러오기
     private void loadTeamData(boolean fromPullRefresh) {
         if (fromPullRefresh) {
             swipeRefreshLayout.setRefreshing(true);
@@ -201,11 +231,12 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         }
 
         Request teamRequest = new Request.Builder()
-                .url(BASE_URL + "/api/team")
+                .url(ApiConfig.BASE_URL + "/api/team")
                 .addHeader("uid", uid)
                 .build();
 
-        client.newCall(teamRequest).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(teamRequest).enqueue(new Callback() {
+            // 팀 정보 요청 실패
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
                 runOnUiThread(() -> {
@@ -214,6 +245,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                 });
             }
 
+            // 팀 정보 응답 처리
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
                 String body = response.body() != null ? response.body().string() : "";
@@ -263,6 +295,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         });
     }
 
+    // 헤더(이름, 마감일)랑 멤버 어댑터 갱신
     private void applyTeamHeader() {
         titleTv.setText(teamName);
         deadlineTv.setText(formatKoreanDate(teamEndDate));
@@ -271,6 +304,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         memberList.setAdapter(memberAdapter);
     }
 
+    // 멤버·목표 목록 API 호출
     private void loadMembersAndGoals() {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) {
@@ -279,16 +313,17 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         }
 
         Request membersRequest = new Request.Builder()
-                .url(BASE_URL + "/api/team/" + teamId + "/members")
+                .url(ApiConfig.BASE_URL + "/api/team/" + teamId + "/members")
                 .addHeader("uid", uid)
                 .build();
 
         Request goalsRequest = new Request.Builder()
-                .url(BASE_URL + "/api/goal/team/" + teamId + "/all")
+                .url(ApiConfig.BASE_URL + "/api/goal/team/" + teamId + "/all")
                 .addHeader("uid", uid)
                 .build();
 
-        client.newCall(membersRequest).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(membersRequest).enqueue(new Callback() {
+            // 멤버 목록 요청 실패
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
                 runOnUiThread(() -> {
@@ -297,6 +332,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                 });
             }
 
+            // 멤버 받고 목표 요청 이어감
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
                 String body = response.body() != null ? response.body().string() : "";
@@ -308,7 +344,8 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                     return;
                 }
 
-                client.newCall(goalsRequest).enqueue(new Callback() {
+                ApiHelper.CLIENT.newCall(goalsRequest).enqueue(new Callback() {
+                    // 목표 목록 요청 실패
                     @Override
                     public void onFailure(@NonNull Call call, @NonNull IOException e) {
                         runOnUiThread(() -> {
@@ -317,6 +354,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                         });
                     }
 
+                    // 멤버·목표 합쳐서 화면 갱신
                     @Override
                     public void onResponse(@NonNull Call call, @NonNull Response goalsResponse) throws IOException {
                         String goalsBody = goalsResponse.body() != null ? goalsResponse.body().string() : "";
@@ -341,10 +379,12 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         });
     }
 
+    // 멤버 JSON 파싱
     private List<TeamMemberItem> parseMembers(String body) throws Exception {
         return TeamMemberItem.parseList(body);
     }
 
+    // 목표 JSON 파싱
     private List<TeamGoalItem> parseGoals(String body) throws Exception {
         List<TeamGoalItem> result = new ArrayList<>();
         JSONObject root = new JSONObject(body);
@@ -368,6 +408,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         return result;
     }
 
+    // 멤버에 목표 붙이고 정렬
     private void mergeMembersAndGoals(List<TeamMemberItem> parsedMembers, List<TeamGoalItem> parsedGoals) {
         Map<Long, TeamMemberItem> preserved = new HashMap<>();
         for (TeamMemberItem m : members) {
@@ -411,6 +452,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         memberAdapter.notifyDataSetChanged();
     }
 
+    // 팀 전체 진행률 계산해서 UI 반영
     private void updateTeamProgress(List<TeamGoalItem> goals) {
         int total = goals.size();
         int completed = 0;
@@ -423,6 +465,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         progressBar.setProgress(percent);
     }
 
+    // 팀 이름·마감일 수정 다이얼로그
     private void showEditTeamDialog() {
         Dialog dialog = new Dialog(this);
         dialog.setContentView(R.layout.dialog_teams_edit);
@@ -450,6 +493,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
             final boolean[] check = {true, teamEndDate != null && !teamEndDate.isEmpty()};
 
             nameEdit.addTextChangedListener(new SimpleTextWatcher() {
+                // 팀 이름 길이 검사
                 @Override
                 public void afterTextChanged(Editable s) {
                     if (s.length() < 2 || s.length() > 100) {
@@ -479,24 +523,27 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         dialog.show();
     }
 
+    // 서버에 팀 정보 수정 PATCH
     private void updateTeam(String name, String endDate, Dialog dialog) {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) return;
 
-        String json = "{\"name\":\"" + escapeJson(name) + "\",\"endDate\":\"" + escapeJson(endDate) + "\"}";
-        RequestBody body = RequestBody.create(json, JSON);
+        String json = "{\"name\":\"" + ApiHelper.escapeJson(name) + "\",\"endDate\":\"" + ApiHelper.escapeJson(endDate) + "\"}";
+        RequestBody body = RequestBody.create(json, ApiHelper.JSON);
         Request request = new Request.Builder()
-                .url(BASE_URL + "/api/team/" + teamId)
+                .url(ApiConfig.BASE_URL + "/api/team/" + teamId)
                 .patch(body)
                 .addHeader("uid", uid)
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
+            // 팀 수정 요청 실패
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                runOnUiThread(() -> showErrorDialog("팀 정보 수정에 실패했습니다.", null));
+                runOnUiThread(() -> CommonDialog.showError(TeamsActivity.this, "팀 정보 수정에 실패했습니다."));
             }
 
+            // 팀 수정 성공하면 다시 로드
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) {
                 runOnUiThread(() -> {
@@ -504,18 +551,20 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                         dialog.dismiss();
                         loadTeamData();
                     } else {
-                        showErrorDialog("팀 정보 수정에 실패했습니다.", null);
+                        CommonDialog.showError(TeamsActivity.this, "팀 정보 수정에 실패했습니다.");
                     }
                 });
             }
         });
     }
 
+    // 멤버에게 목표 추가 다이얼로그 열기
     @Override
     public void onAddGoal(TeamMemberItem member) {
         showAddGoalDialog(member);
     }
 
+    // 목표 추가 다이얼로그 띄우기
     private void showAddGoalDialog(TeamMemberItem preselected) {
         List<TeamMemberItem> eligible = getGoalAddEligibleMembers();
         if (eligible.isEmpty()) {
@@ -523,12 +572,14 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
             return;
         }
 
-        AddGoalDialog.show(this, client, teamId, eligible, preselected, new AddGoalDialog.OnComplete() {
+        AddGoalDialog.show(this, ApiHelper.CLIENT, teamId, eligible, preselected, new AddGoalDialog.OnComplete() {
+            // 목표 추가 성공하면 목록 갱신
             @Override
             public void onSuccess() {
                 loadMembersAndGoals();
             }
 
+            // 목표 추가 실패 메시지 표시
             @Override
             public void onError(String message) {
                 showErrorDialog(message, null);
@@ -536,149 +587,110 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         });
     }
 
+    // 목표 상세 다이얼로그 열기
     @Override
     public void onGoalClick(TeamGoalItem goal, TeamMemberItem member) {
-        showGoalDetailDialog(goal);
+        GoalDetailDialog.show(this, ApiHelper.CLIENT, goal, isLeader, this::loadMembersAndGoals);
     }
 
-    private void showGoalDetailDialog(TeamGoalItem goal) {
-        Dialog dialog = new Dialog(this);
-        dialog.setContentView(R.layout.dialog_teams_goal_detail);
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        }
-
-        TextView titleTv = dialog.findViewById(R.id.dialog_teams_goal_title);
-        TextView statusTv = dialog.findViewById(R.id.dialog_teams_goal_status);
-        TextView deadlineTvLocal = dialog.findViewById(R.id.dialog_teams_goal_deadline);
-        TextView remarkTv = dialog.findViewById(R.id.dialog_teams_goal_remark);
-        MaterialButton completeBtn = dialog.findViewById(R.id.dialog_teams_goal_complete);
-        MaterialButton confirmBtn = dialog.findViewById(R.id.dialog_teams_goal_confirm);
-
-        titleTv.setText(goal.goalText);
-        statusTv.setText(goal.status == 1 ? "상태: 완료" : "상태: 진행 중");
-        deadlineTvLocal.setText("남은 시간: " + TeamMemberAdapter.formatRemainingDays(goal.goalEndDate));
-        remarkTv.setText(goal.remark == null || goal.remark.isEmpty() ? "없음" : goal.remark);
-
-        Long myUserId = SessionManager.getInstance().getUserId();
-        boolean canComplete = goal.status == 0
-                && (isLeader || (myUserId != null && myUserId == goal.userId));
-
-        if (canComplete) {
-            completeBtn.setVisibility(View.VISIBLE);
-            completeBtn.setOnClickListener(v ->
-                    updateGoalStatus(goal.id, 1, dialog)
-            );
-        }
-
-        confirmBtn.setOnClickListener(v -> dialog.dismiss());
-        dialog.show();
-    }
-
-    private void updateGoalStatus(long goalId, int status, Dialog dialog) {
-        String uid = SessionManager.getInstance().getUid();
-        if (uid == null || uid.isEmpty()) return;
-
-        String json = "{\"status\":\"" + status + "\"}";
-        RequestBody body = RequestBody.create(json, JSON);
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/api/goal/" + goalId + "/status")
-                .patch(body)
-                .addHeader("uid", uid)
-                .build();
-
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                runOnUiThread(() -> showErrorDialog("상태 변경에 실패했습니다.", null));
-            }
-
-            @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) {
-                runOnUiThread(() -> {
-                    if (response.isSuccessful()) {
-                        dialog.dismiss();
-                        loadMembersAndGoals();
-                    } else {
-                        showErrorDialog("상태 변경에 실패했습니다.", null);
-                    }
-                });
-            }
-        });
-    }
-
+    // 팀장이면 목표 삭제 확인
     @Override
     public void onDeleteGoal(TeamGoalItem goal) {
         if (!isLeader) return;
 
-        new AlertDialog.Builder(this)
-                .setMessage("이 목표를 삭제하시겠습니까?")
-                .setPositiveButton("삭제", (d, w) -> deleteGoal(goal.id))
-                .setNegativeButton("취소", null)
-                .show();
+        ConfirmCancelDialog dialog = new ConfirmCancelDialog(
+                this,
+                "이 목표를 삭제하시겠습니까?",
+                "삭제",
+                "취소"
+        );
+        dialog.setOnConfirmListener(v -> {
+            dialog.dismiss();
+            deleteGoal(goal.id);
+        });
+        dialog.show();
     }
 
+    // 서버에 목표 DELETE
     private void deleteGoal(long goalId) {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) return;
 
         Request request = new Request.Builder()
-                .url(BASE_URL + "/api/goal/" + goalId)
+                .url(ApiConfig.BASE_URL + "/api/goal/" + goalId)
                 .delete()
                 .addHeader("uid", uid)
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
+            // 목표 삭제 요청 실패
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                runOnUiThread(() -> showErrorDialog("목표 삭제에 실패했습니다.", null));
+                runOnUiThread(() -> CommonDialog.showError(TeamsActivity.this, "목표 삭제에 실패했습니다."));
             }
 
+            // 목표 삭제 성공하면 목록 갱신
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
                         loadMembersAndGoals();
                     } else {
-                        showErrorDialog("목표 삭제에 실패했습니다.", null);
+                        CommonDialog.showError(TeamsActivity.this, "목표 삭제에 실패했습니다.");
                     }
                 });
             }
         });
     }
 
+    // 팀 삭제 or 팀 나가기 확인
     private void onBottomButtonClick() {
         if (isLeader) {
-            new AlertDialog.Builder(this)
-                    .setMessage("팀을 삭제하시겠습니까?\n모든 목표와 멤버 정보가 삭제됩니다.")
-                    .setPositiveButton("삭제", (d, w) -> deleteTeam())
-                    .setNegativeButton("취소", null)
-                    .show();
+            ConfirmCancelDialog dialog = new ConfirmCancelDialog(
+                    this,
+                    "팀을 삭제하시겠습니까?\n모든 목표와 멤버 정보가 삭제됩니다.",
+                    "삭제",
+                    "취소"
+            );
+            dialog.setOnConfirmListener(v -> {
+                dialog.dismiss();
+                deleteTeam();
+            });
+            dialog.show();
         } else {
-            new AlertDialog.Builder(this)
-                    .setMessage("팀에서 나가시겠습니까?")
-                    .setPositiveButton("나가기", (d, w) -> leaveTeam())
-                    .setNegativeButton("취소", null)
-                    .show();
+            ConfirmCancelDialog dialog = new ConfirmCancelDialog(
+                    this,
+                    "팀에서 나가시겠습니까?",
+                    "나가기",
+                    "취소"
+            );
+            dialog.setOnConfirmListener(v -> {
+                dialog.dismiss();
+                leaveTeam();
+            });
+            dialog.show();
         }
     }
 
+    // 팀 나가기 API 호출
     private void leaveTeam() {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) return;
 
         Request request = new Request.Builder()
-                .url(BASE_URL + "/api/team/" + teamId + "/leave")
+                .url(ApiConfig.BASE_URL + "/api/team/" + teamId + "/leave")
                 .delete()
                 .addHeader("uid", uid)
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
+            // 팀 나가기 요청 실패
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                runOnUiThread(() -> showErrorDialog("팀 나가기에 실패했습니다.", null));
+                runOnUiThread(() -> CommonDialog.showError(TeamsActivity.this, "팀 나가기에 실패했습니다."));
             }
 
+            // 팀 나가기 성공하면 화면 닫기
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
                 String body = response.body() != null ? response.body().string() : "";
@@ -699,22 +711,25 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         });
     }
 
+    // 팀 삭제 API 호출
     private void deleteTeam() {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) return;
 
         Request request = new Request.Builder()
-                .url(BASE_URL + "/api/team/" + teamId)
+                .url(ApiConfig.BASE_URL + "/api/team/" + teamId)
                 .delete()
                 .addHeader("uid", uid)
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
+            // 팀 삭제 요청 실패
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                runOnUiThread(() -> showErrorDialog("팀 삭제에 실패했습니다.", null));
+                runOnUiThread(() -> CommonDialog.showError(TeamsActivity.this, "팀 삭제에 실패했습니다."));
             }
 
+            // 팀 삭제 성공하면 화면 닫기
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) {
                 runOnUiThread(() -> {
@@ -722,13 +737,14 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                         SessionManager.getInstance().setCurrentTeamId(null);
                         finish();
                     } else {
-                        showErrorDialog("팀 삭제에 실패했습니다.", null);
+                        CommonDialog.showError(TeamsActivity.this, "팀 삭제에 실패했습니다.");
                     }
                 });
             }
         });
     }
 
+    // API 에러 메시지 뽑기
     private String parseApiErrorMessage(String body, String fallback) {
         try {
             JSONObject root = new JSONObject(body);
@@ -741,6 +757,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         return fallback;
     }
 
+    // 날짜 선택 (7일 후부터)
     private void showDatePicker(EditText dateEdit, TextView warnTv, DateSelectedListener listener) {
         LocalDate minDate = LocalDate.now().plusDays(7);
         Calendar calendar = Calendar.getInstance();
@@ -769,6 +786,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         picker.show();
     }
 
+    // 날짜를 yyyy년 M월 d일 형식으로
     private String formatKoreanDate(String endDate) {
         if (endDate == null || endDate.isEmpty()) return "";
         try {
@@ -781,32 +799,36 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         return endDate;
     }
 
-    private String escapeJson(String value) {
-        if (value == null) return "";
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
-    }
-
+    // 스와이프 새로고침 멈추기
     private void stopRefreshing() {
         if (swipeRefreshLayout != null) {
             swipeRefreshLayout.setRefreshing(false);
         }
     }
 
+    // 에러 다이얼로그 띄우기
     private void showErrorDialog(String message, Runnable onConfirm) {
+        if (onConfirm == null) {
+            CommonDialog.showError(this, message);
+            return;
+        }
         CommonDialog dialog = new CommonDialog(this, message, "확인");
         dialog.setOnConfirmListener(v -> {
             dialog.dismiss();
-            if (onConfirm != null) onConfirm.run();
+            onConfirm.run();
         });
         dialog.show();
     }
 
     private interface DateSelectedListener {
+        // 날짜 선택됐을 때 콜백
         void onSelected(LocalDate date);
     }
 
     private abstract static class SimpleTextWatcher implements TextWatcher {
+        // TextWatcher 빈 구현
         @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+        // TextWatcher 빈 구현
         @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
     }
 }

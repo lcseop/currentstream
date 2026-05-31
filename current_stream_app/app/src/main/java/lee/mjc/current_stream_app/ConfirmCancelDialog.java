@@ -11,35 +11,35 @@ import androidx.annotation.NonNull;
 
 import com.google.android.material.button.MaterialButton;
 
-// 확인 버튼 하나만 있는 알림 다이얼로그
-public class CommonDialog extends Dialog {
+// 확인/취소 두 버튼 다이얼로그
+public class ConfirmCancelDialog extends Dialog {
 
     private final MaterialButton btnConfirm;
+    private final MaterialButton btnCancel;
 
-    // 메시지와 버튼 텍스트로 다이얼로그 생성
-    public CommonDialog(
+    // 메시지와 확인/취소 버튼 텍스트로 다이얼로그 생성
+    public ConfirmCancelDialog(
             @NonNull Context context,
             String message,
-            String buttonText
+            String confirmText,
+            String cancelText
     ) {
         super(context);
-
-        setContentView(R.layout.dialog_normal);
-
-        setCancelable(false);
-        setCanceledOnTouchOutside(false);
+        setContentView(R.layout.dialog_ok_or_cancel);
+        setCancelable(true);
+        setCanceledOnTouchOutside(true);
 
         if (getWindow() != null) {
-            getWindow().setBackgroundDrawable(
-                    new ColorDrawable(Color.TRANSPARENT)
-            );
+            getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         }
 
         TextView tvMessage = findViewById(R.id.tv_message);
         btnConfirm = findViewById(R.id.btn_confirm);
+        btnCancel = findViewById(R.id.btn_cancel);
 
         tvMessage.setText(message);
-        btnConfirm.setText(buttonText);
+        btnConfirm.setText(confirmText);
+        btnCancel.setText(cancelText);
     }
 
     // 확인 버튼 클릭 리스너 설정
@@ -47,10 +47,8 @@ public class CommonDialog extends Dialog {
         btnConfirm.setOnClickListener(listener);
     }
 
-    // 확인 버튼만 있는 오류/안내 다이얼로그 바로 띄우기
-    public static void showError(Context context, String message) {
-        CommonDialog dialog = new CommonDialog(context, message, "확인");
-        dialog.setOnConfirmListener(v -> dialog.dismiss());
-        dialog.show();
+    // 취소 버튼 클릭 리스너 설정
+    public void setOnCancelClickListener(View.OnClickListener listener) {
+        btnCancel.setOnClickListener(listener);
     }
 }

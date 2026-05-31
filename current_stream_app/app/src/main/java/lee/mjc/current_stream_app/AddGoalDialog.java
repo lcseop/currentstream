@@ -26,16 +26,15 @@ import java.util.List;
 
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
+// 팀 목표 추가 다이얼로그 (멤버 선택, 마감일)
 public final class AddGoalDialog {
 
-    private static final String BASE_URL = "http://10.0.2.2:8080";
-    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+    private static final int GOAL_TEXT_MAX = 50;
 
     public interface OnComplete {
         void onSuccess();
@@ -45,6 +44,7 @@ public final class AddGoalDialog {
     private AddGoalDialog() {
     }
 
+    // 팀 목표 추가 다이얼로그 표시 (멤버 선택, 마감일 입력)
     public static void show(
             AppCompatActivity activity,
             OkHttpClient client,
@@ -69,8 +69,8 @@ public final class AddGoalDialog {
         Spinner memberSpinner = dialog.findViewById(R.id.dialog_teams_add_member_spinner);
         TextView targetTv = dialog.findViewById(R.id.dialog_teams_add_target);
         EditText textEdit = dialog.findViewById(R.id.dialog_teams_add_text);
+        EditText remarkEdit = dialog.findViewById(R.id.dialog_teams_add_remark);
         EditText dateEdit = dialog.findViewById(R.id.dialog_teams_add_date);
-        TextView textWarn = dialog.findViewById(R.id.dialog_teams_add_text_warn);
         TextView dateWarn = dialog.findViewById(R.id.dialog_teams_add_date_warn);
         MaterialButton cancelBtn = dialog.findViewById(R.id.dialog_teams_add_cancel);
         MaterialButton submitBtn = dialog.findViewById(R.id.dialog_teams_add_submit);
@@ -100,34 +100,30 @@ public final class AddGoalDialog {
             memberSpinner.setEnabled(false);
         }
 
-        final boolean[] check = {false, false};
+        final boolean[] check = {false, true, false};
+
+        Runnable updateSubmit = () -> submitBtn.setEnabled(check[0] && check[1] && check[2]);
 
         textEdit.addTextChangedListener(new SimpleTextWatcher() {
             @Override
             public void afterTextChanged(Editable s) {
-                if (s.toString().trim().isEmpty()) {
-                    textWarn.setText("목표 내용을 입력해주세요.");
-                    textWarn.setVisibility(View.VISIBLE);
-                    check[0] = false;
-                } else {
-                    textWarn.setVisibility(View.INVISIBLE);
-                    check[0] = true;
-                }
-                submitBtn.setEnabled(check[0] && check[1]);
+                check[0] = !s.toString().trim().isEmpty() && s.length() <= GOAL_TEXT_MAX;
+                updateSubmit.run();
             }
         });
 
         dateEdit.setOnClickListener(v -> showDatePicker(activity, dateEdit, dateWarn, selected -> {
-            check[1] = selected != null;
-            submitBtn.setEnabled(check[0] && check[1]);
+            check[2] = selected != null;
+            updateSubmit.run();
         }));
 
         cancelBtn.setOnClickListener(v -> dialog.dismiss());
         submitBtn.setOnClickListener(v -> {
-            if (!check[0] || !check[1]) return;
+            if (!check[0] || !check[1] || !check[2]) return;
             TeamMemberItem selectedMember = eligible.get(memberSpinner.getSelectedItemPosition());
-            createGoal(activity, client, teamId, selectedMember,
+            createGoal(activity, teamId, selectedMember,
                     textEdit.getText().toString().trim(),
+                    remarkEdit.getText().toString().trim(),
                     dateEdit.getText().toString().trim(),
                     dialog,
                     callback);
@@ -136,12 +132,13 @@ public final class AddGoalDialog {
         dialog.show();
     }
 
+    // 서버에 팀 목표 생성 API 요청
     private static void createGoal(
             AppCompatActivity activity,
-            OkHttpClient client,
             long teamId,
             TeamMemberItem member,
             String text,
+            String remark,
             String endDate,
             Dialog dialog,
             OnComplete callback
@@ -159,17 +156,18 @@ public final class AddGoalDialog {
         }
 
         String json = "{\"teamId\":\"" + teamId
-                + "\",\"text\":\"" + escapeJson(text)
-                + "\",\"remark\":\"\",\"endDate\":\"" + escapeJson(endDate) + "\"" + targetPart + "}";
+                + "\",\"text\":\"" + ApiHelper.escapeJson(text)
+                + "\",\"remark\":\"" + ApiHelper.escapeJson(remark)
+                + "\",\"endDate\":\"" + ApiHelper.escapeJson(endDate) + "\"" + targetPart + "}";
 
-        RequestBody body = RequestBody.create(json, JSON);
+        RequestBody body = RequestBody.create(json, ApiHelper.JSON);
         Request request = new Request.Builder()
-                .url(BASE_URL + "/api/goal")
+                .url(ApiConfig.BASE_URL + "/api/goal")
                 .post(body)
                 .addHeader("uid", uid)
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
                 activity.runOnUiThread(() -> {
@@ -191,6 +189,7 @@ public final class AddGoalDialog {
         });
     }
 
+    // 마감일 선택 DatePicker (최소 7일 후)
     private static void showDatePicker(
             AppCompatActivity activity,
             EditText dateEdit,
@@ -222,11 +221,6 @@ public final class AddGoalDialog {
         );
         picker.getDatePicker().setMinDate(calendar.getTimeInMillis());
         picker.show();
-    }
-
-    private static String escapeJson(String value) {
-        if (value == null) return "";
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private interface DateSelectedListener {

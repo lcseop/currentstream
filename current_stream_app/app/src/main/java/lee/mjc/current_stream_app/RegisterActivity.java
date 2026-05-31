@@ -13,7 +13,6 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.gms.common.internal.service.Common;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 import com.google.firebase.auth.FirebaseUser;
@@ -22,12 +21,11 @@ import java.io.IOException;
 
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
+// 회원가입 화면 (이메일 인증, 서버 등록)
 public class RegisterActivity extends AppCompatActivity {
 
     FrameLayout loadingOverlay;
@@ -38,6 +36,7 @@ public class RegisterActivity extends AppCompatActivity {
 
     boolean[] check = {false, false, false, false};
 
+    // 회원가입 화면 초기화 (입력 검증, Firebase 가입)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -238,29 +237,25 @@ public class RegisterActivity extends AppCompatActivity {
 
     }
 
+    // Firebase 토큰과 닉네임을 서버 회원가입 API로 전송
     private void sendSignupToServer(String idToken, String name) {
-        // OkHttp를 이용해 서버로 보내기 위해 객체 생성
-        OkHttpClient client = new OkHttpClient();
         // token과 name을 json 형태로 담음 (name은 firebase가 아닌 DB에 따로 저장됨)
         String json = "{"
                 + "\"idToken\":\"" + idToken + "\","
                 + "\"name\":\"" + name + "\""
                 + "}";
-        
+
         // json 설정
-        RequestBody body = RequestBody.create(
-                json,
-                MediaType.parse("application/json")
-        );
+        RequestBody body = RequestBody.create(json, ApiHelper.JSON);
 
         // requestBody를 url을 통해 post 메소드로 요청함
         Request request = new Request.Builder()
-                .url("http://10.0.2.2:8080/api/user/signup")
+                .url(ApiConfig.BASE_URL + "/api/user/signup")
                 .post(body)
                 .build();
 
         // 요청 받은 응답을 콜백으로 받음
-        client.newCall(request).enqueue(new Callback() {
+        ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
             
             // 실패 시
             @Override
@@ -298,6 +293,7 @@ public class RegisterActivity extends AppCompatActivity {
         });
     }
 
+    // 모든 입력 검증 통과 시에만 가입 버튼 활성화
     private void updateSignupButton() {
 
         for (boolean b : check) {

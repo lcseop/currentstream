@@ -11,23 +11,26 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
 
+// 팀 초대 알림 목록 어댑터 (수락/거절)
 public class InviteAdapter extends RecyclerView.Adapter<InviteAdapter.InviteViewHolder> {
 
     public interface InviteListener {
-        void onAccept(MainActivity.InviteItem item);
-        void onReject(MainActivity.InviteItem item);
+        void onAccept(InviteItem item);
+        void onReject(InviteItem item);
     }
 
-    private final List<MainActivity.InviteItem> items;
+    private final List<InviteItem> items;
     private final InviteListener listener;
 
-    public InviteAdapter(List<MainActivity.InviteItem> items, InviteListener listener) {
+    // 초대 목록과 수락/거절 리스너로 어댑터 생성
+    public InviteAdapter(List<InviteItem> items, InviteListener listener) {
         this.items = items;
         this.listener = listener;
     }
 
     @NonNull
     @Override
+    // 초대 항목 ViewHolder 생성
     public InviteViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.main_bottom_sheet_invite_item, parent, false);
@@ -35,8 +38,9 @@ public class InviteAdapter extends RecyclerView.Adapter<InviteAdapter.InviteView
     }
 
     @Override
+    // 팀명, 초대 메시지, 수락/거절 버튼 바인딩
     public void onBindViewHolder(@NonNull InviteViewHolder holder, int position) {
-        MainActivity.InviteItem item = items.get(position);
+        InviteItem item = items.get(position);
         holder.teamText.setText(item.teamName);
 
         String msg = item.message;
@@ -67,6 +71,7 @@ public class InviteAdapter extends RecyclerView.Adapter<InviteAdapter.InviteView
         Button acceptBtn;
         Button rejectBtn;
 
+        // ViewHolder 뷰 연결
         InviteViewHolder(@NonNull View itemView) {
             super(itemView);
             teamText = itemView.findViewById(R.id.item_invite_team);

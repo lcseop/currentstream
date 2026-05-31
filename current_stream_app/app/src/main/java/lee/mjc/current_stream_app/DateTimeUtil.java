@@ -4,13 +4,16 @@ import android.os.Build;
 
 import org.json.JSONArray;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
+import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 
+// 날짜·시간 표시 유틸 (팀 로그 상대 시간, 목표 D-day 등)
 public final class DateTimeUtil {
 
     private static final ZoneId SERVER_ZONE = ZoneId.of("Asia/Seoul");
@@ -33,6 +36,7 @@ public final class DateTimeUtil {
     private DateTimeUtil() {
     }
 
+    // 서버 createdAt(JSON 배열·문자열·숫자)을 epoch ms로 변환
     public static long parseCreatedAtMillis(Object raw) {
         if (raw == null) return 0L;
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return 0L;
@@ -72,6 +76,7 @@ public final class DateTimeUtil {
         }
     }
 
+    // 생성 시각 기준 상대 시간 표시 (방금 전, 3분 전, 2월 5일 등)
     public static String formatRelativeTime(long createdAtMillis) {
         if (createdAtMillis <= 0L) return "";
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return "";
@@ -91,5 +96,47 @@ public final class DateTimeUtil {
                 SERVER_ZONE
         );
         return time.format(DateTimeFormatter.ofPattern("M월 d일", Locale.KOREA));
+    }
+
+    // 팀 선택/진행률 카드용 D-day (예: D-15, D+3)
+    public static String formatDday(String endDate) {
+        if (endDate == null || endDate.isEmpty()) return "D-?";
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                LocalDate end = LocalDate.parse(endDate);
+                LocalDate today = LocalDate.now();
+                long days = ChronoUnit.DAYS.between(today, end);
+                return days >= 0 ? ("D-" + days) : ("D+" + Math.abs(days));
+            }
+        } catch (Exception ignored) {
+        }
+        return "D-?";
+    }
+
+    // 목표 마감까지 남은 일수 (예: 12일 남음, 3일 초과)
+    public static String formatRemainingDays(String endDate) {
+        if (endDate == null || endDate.isEmpty()) return "";
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                LocalDate end = LocalDate.parse(endDate);
+                LocalDate today = LocalDate.now();
+                long days = ChronoUnit.DAYS.between(today, end);
+                return days >= 0 ? (days + "일 남음") : (Math.abs(days) + "일 초과");
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
+    }
+
+    // 목표 마감일이 오늘보다 이전이면 true
+    public static boolean isGoalOverdue(String endDate) {
+        if (endDate == null || endDate.isEmpty()) return false;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                return LocalDate.parse(endDate).isBefore(LocalDate.now());
+            }
+        } catch (Exception ignored) {
+        }
+        return false;
     }
 }

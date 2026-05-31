@@ -18,22 +18,28 @@
 
         <TextView
             android:id="@+id/main_team_selector"
-            android:layout_width="0dp"
-            android:layout_height="50dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_marginEnd="10dp"
-            android:gravity="center"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="6dp"
+            android:background="@drawable/team_selector_bg"
+            android:clickable="true"
+
+            android:ellipsize="end"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:maxLines="1"
 
             android:text="팀 테스트"
-            android:textStyle="bold"
             android:textColor="@color/login_1"
+            android:textSize="25sp"
+            android:textStyle="bold"
 
-            android:autoSizeTextType="uniform"
-            android:autoSizeMinTextSize="5sp"
-            android:autoSizeMaxTextSize="30sp"
-            android:autoSizeStepGranularity="1sp"
-
+            app:layout_constrainedWidth="true"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/main_notification"
+            app:layout_constraintHorizontal_bias="0"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -253,6 +259,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
+                        android:layout_marginBottom="5dp"
                         android:orientation="horizontal">
 
                         <TextView
@@ -264,7 +271,7 @@
 
                         <TextView
                             android:id="@+id/tv_progress_toggle"
-                            android:layout_width="wrap_content"
+                            android:layout_width="4dp"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="6dp"
                             android:text="▽"
@@ -297,6 +304,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
+                        android:layout_marginBottom="5dp"
                         android:orientation="horizontal">
 
                         <TextView

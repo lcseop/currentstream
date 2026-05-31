@@ -26,27 +26,41 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />
 
+        <ImageButton
+            android:id="@+id/teams_header_edit"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="팀 설정"
+            android:scaleType="fitCenter"
+            android:src="@drawable/pic_settings"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
         <TextView
-            android:layout_width="300dp"
-            android:layout_height="50dp"
-            android:layout_gravity="center"
             android:id="@+id/teams_header_title"
-
-            android:text="팀 이름"
-            android:textStyle="bold"
-            android:textColor="@color/login_1"
-
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/team_selector_bg"
+            android:clickable="true"
+            android:ellipsize="end"
+            android:focusable="true"
             android:gravity="center"
-
-            android:autoSizeTextType="uniform"
-            android:autoSizeMinTextSize="5sp"
-            android:autoSizeMaxTextSize="35sp"
-            android:autoSizeStepGranularity="1sp"
-
-            app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
+            android:maxLines="1"
+            android:paddingHorizontal="18dp"
+            android:paddingVertical="8dp"
+            android:text="팀 이름"
+            android:textColor="@color/login_1"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            app:layout_constrainedWidth="true"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/teams_header_edit"
+            app:layout_constraintHorizontal_bias="0.5"
+            app:layout_constraintStart_toEndOf="@id/teams_header_back"
+            app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout

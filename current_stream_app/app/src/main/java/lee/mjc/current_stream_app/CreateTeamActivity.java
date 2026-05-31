@@ -28,16 +28,13 @@ import java.util.List;
 
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
+// 팀 생성 화면 (이름, 마감일, 멤버 초대)
 public class CreateTeamActivity extends AppCompatActivity {
 
-    private static final String BASE_URL = "http://10.0.2.2:8080";
-    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
     private static final int MAX_INVITE_COUNT = 5;
 
     private EditText nameEdit;
@@ -51,13 +48,13 @@ public class CreateTeamActivity extends AppCompatActivity {
     private ImageButton backBtn;
     private RecyclerView usersList;
 
-    private final OkHttpClient client = new OkHttpClient();
     private final List<InviteMember> inviteMembers = new ArrayList<>();
     private CreateTeamMemberAdapter memberAdapter;
 
     // 0: 팀 이름, 1: 목표 날짜
     boolean[] check = {false, false};
 
+    // 화면 초기화하고 입력·버튼 연결
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -98,11 +95,14 @@ public class CreateTeamActivity extends AppCompatActivity {
         createBtn.setOnClickListener(v -> createTeam());
     }
 
+    // 팀 이름 입력 검증
     private void setupNameValidation() {
         nameEdit.addTextChangedListener(new TextWatcher() {
+            // TextWatcher 빈 구현
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
+            // 팀 이름 길이 검사
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 if (s.length() < 1) {
@@ -120,15 +120,18 @@ public class CreateTeamActivity extends AppCompatActivity {
                 updateCreateButton();
             }
 
+            // TextWatcher 빈 구현
             @Override
             public void afterTextChanged(Editable s) {}
         });
     }
 
+    // 날짜 입력란 클릭 시 달력 열기
     private void setupDatePicker() {
         dateEdit.setOnClickListener(v -> showDatePicker());
     }
 
+    // 날짜 선택 다이얼로그 (7일 후부터)
     private void showDatePicker() {
         LocalDate minDate = LocalDate.now().plusDays(7);
         Calendar calendar = Calendar.getInstance();
@@ -151,6 +154,7 @@ public class CreateTeamActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    // 선택한 날짜가 7일 후인지 검사
     private void validateSelectedDate(LocalDate date) {
         if (date.isBefore(LocalDate.now().plusDays(7))) {
             dateWarn.setText("날짜는 7일 후로 설정해주세요.");
@@ -163,6 +167,7 @@ public class CreateTeamActivity extends AppCompatActivity {
         updateCreateButton();
     }
 
+    // 초대 tag 입력 후 엔터 처리
     private void setupInviteInput() {
         usersEdit.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE
@@ -176,6 +181,7 @@ public class CreateTeamActivity extends AppCompatActivity {
         });
     }
 
+    // tag 서버 확인 후 초대 목록에 추가
     private void verifyAndAddInviteTag() {
         String tag = usersEdit.getText().toString().trim();
         if (tag.isEmpty()) return;
@@ -196,11 +202,12 @@ public class CreateTeamActivity extends AppCompatActivity {
         try {
             String encodedTag = URLEncoder.encode(tag, StandardCharsets.UTF_8.toString());
             Request request = new Request.Builder()
-                    .url(BASE_URL + "/api/user/tag?tag=" + encodedTag)
+                    .url(ApiConfig.BASE_URL + "/api/user/tag?tag=" + encodedTag)
                     .get()
                     .build();
 
-            client.newCall(request).enqueue(new Callback() {
+            ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
+                // tag 확인 요청 실패
                 @Override
                 public void onFailure(Call call, IOException e) {
                     runOnUiThread(() -> {
@@ -209,6 +216,7 @@ public class CreateTeamActivity extends AppCompatActivity {
                     });
                 }
 
+                // tag 확인 응답 처리
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
                     String resBody = response.body() != null ? response.body().string() : "";
@@ -222,7 +230,7 @@ public class CreateTeamActivity extends AppCompatActivity {
 
                         try {
                             JSONObject root = new JSONObject(resBody);
-                            if (!isSuccessResponse(root)) {
+                            if (!ApiHelper.isSuccess(root)) {
                                 showDialog("존재하지 않는 tag입니다.");
                                 return;
                             }
@@ -266,6 +274,7 @@ public class CreateTeamActivity extends AppCompatActivity {
         }
     }
 
+    // 초대 목록에 같은 tag 있는지 확인
     private boolean containsTag(String tag) {
         for (InviteMember member : inviteMembers) {
             if (member.tag.equals(tag)) return true;
@@ -273,10 +282,12 @@ public class CreateTeamActivity extends AppCompatActivity {
         return false;
     }
 
+    // 초대 인원 수 UI 갱신
     private void updateInviteCount() {
         usersCountTv.setText("(" + inviteMembers.size() + "/" + MAX_INVITE_COUNT + ")");
     }
 
+    // 이름·날짜 다 채워졌을 때만 생성 버튼 활성화
     private void updateCreateButton() {
         for (boolean b : check) {
             if (!b) {
@@ -287,11 +298,7 @@ public class CreateTeamActivity extends AppCompatActivity {
         createBtn.setEnabled(true);
     }
 
-    private boolean isSuccessResponse(JSONObject root) {
-        String code = root.optString("responseCode", "");
-        return code.endsWith("_ok");
-    }
-
+    // 서버에 팀 생성 POST
     private void createTeam() {
         if (!check[0] || !check[1]) return;
 
@@ -311,14 +318,15 @@ public class CreateTeamActivity extends AppCompatActivity {
             json.put("name", name);
             json.put("endDate", endDate);
 
-            RequestBody body = RequestBody.create(json.toString(), JSON);
+            RequestBody body = RequestBody.create(json.toString(), ApiHelper.JSON);
             Request request = new Request.Builder()
-                    .url(BASE_URL + "/api/team")
+                    .url(ApiConfig.BASE_URL + "/api/team")
                     .post(body)
                     .addHeader("uid", uid)
                     .build();
 
-            client.newCall(request).enqueue(new Callback() {
+            ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
+                // 팀 생성 요청 실패
                 @Override
                 public void onFailure(Call call, IOException e) {
                     runOnUiThread(() -> {
@@ -327,6 +335,7 @@ public class CreateTeamActivity extends AppCompatActivity {
                     });
                 }
 
+                // 팀 생성 성공하면 초대 이어감
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
                     String resBody = response.body() != null ? response.body().string() : "";
@@ -365,6 +374,7 @@ public class CreateTeamActivity extends AppCompatActivity {
         }
     }
 
+    // 초대 멤버를 하나씩 순서대로 보내기
     private void inviteMembersSequentially(String uid, long teamId, int index) {
         if (index >= inviteMembers.size()) {
             showDialogAndFinish("팀이 생성되었고 초대를 보냈습니다.");
@@ -378,14 +388,15 @@ public class CreateTeamActivity extends AppCompatActivity {
             json.put("teamId", String.valueOf(teamId));
             json.put("tag", tag);
 
-            RequestBody body = RequestBody.create(json.toString(), JSON);
+            RequestBody body = RequestBody.create(json.toString(), ApiHelper.JSON);
             Request request = new Request.Builder()
-                    .url(BASE_URL + "/api/team/invite")
+                    .url(ApiConfig.BASE_URL + "/api/team/invite")
                     .post(body)
                     .addHeader("uid", uid)
                     .build();
 
-            client.newCall(request).enqueue(new Callback() {
+            ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
+                // 초대 요청 실패
                 @Override
                 public void onFailure(Call call, IOException e) {
                     runOnUiThread(() -> {
@@ -394,6 +405,7 @@ public class CreateTeamActivity extends AppCompatActivity {
                     });
                 }
 
+                // 다음 멤버 초대 이어감
                 @Override
                 public void onResponse(Call call, Response response) {
                     runOnUiThread(() -> inviteMembersSequentially(uid, teamId, index + 1));
@@ -405,12 +417,14 @@ public class CreateTeamActivity extends AppCompatActivity {
         }
     }
 
+    // 안내 다이얼로그 띄우기
     private void showDialog(String message) {
         CommonDialog dialog = new CommonDialog(this, message, "확인");
         dialog.setOnConfirmListener(v -> dialog.dismiss());
         dialog.show();
     }
 
+    // 안내 후 화면 닫기
     private void showDialogAndFinish(String message) {
         CommonDialog dialog = new CommonDialog(this, message, "확인");
         dialog.setOnConfirmListener(v -> {
