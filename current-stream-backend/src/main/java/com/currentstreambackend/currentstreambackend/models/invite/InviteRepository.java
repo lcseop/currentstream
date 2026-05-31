@@ -12,4 +12,6 @@ public interface InviteRepository extends JpaRepository<InviteEntity, Long> {
     List<InviteEntity> findByUserIdAndStatus(Long id, int i);
 
     void deleteByTeamId(Long teamId);
+
+    void deleteByUserId(Long userId);
 }

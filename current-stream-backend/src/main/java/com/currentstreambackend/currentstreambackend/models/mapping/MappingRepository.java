@@ -15,5 +15,7 @@ public interface MappingRepository extends JpaRepository<MappingEntity, Long> {
 
     void deleteByTeamId(Long teamId);
 
+    void deleteByUserId(Long userId);
+
     boolean existsByUserIdAndTeamId(Long id, Long teamId);
 }

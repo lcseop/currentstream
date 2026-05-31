@@ -1,14 +1,21 @@
 package com.currentstreambackend.currentstreambackend.models.users;
 
 import com.currentstreambackend.currentstreambackend.models.common.EmailNotVerifiedException;
+import com.currentstreambackend.currentstreambackend.models.goal.GoalRepository;
+import com.currentstreambackend.currentstreambackend.models.invite.InviteRepository;
+import com.currentstreambackend.currentstreambackend.models.mapping.MappingEntity;
+import com.currentstreambackend.currentstreambackend.models.mapping.MappingRepository;
+import com.currentstreambackend.currentstreambackend.models.teams.TeamsEntity;
+import com.currentstreambackend.currentstreambackend.models.teams.TeamsRepository;
+import com.currentstreambackend.currentstreambackend.models.teams.TeamsService;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -16,6 +23,21 @@ import java.util.Optional;
 public class UsersService {
     @Autowired
     private UsersRepository usersRepository;
+
+    @Autowired
+    private MappingRepository mappingRepository;
+
+    @Autowired
+    private TeamsRepository teamsRepository;
+
+    @Autowired
+    private TeamsService teamsService;
+
+    @Autowired
+    private GoalRepository goalRepository;
+
+    @Autowired
+    private InviteRepository inviteRepository;
 
     /**
      * 회원가입 요청을 처리하는 로직
@@ -103,6 +125,35 @@ public class UsersService {
         UsersEntity user = usersRepository.findByTag(tag)
                 .orElseThrow(() -> new RuntimeException("Target not found"));
         return (UsersDto) new UsersDto().copyMembers(user, true);
+    }
+
+    /**
+     * 회원 탈퇴: 팀장인 팀은 삭제, 소속 팀은 탈퇴 처리 후 계정 삭제
+     */
+    @Transactional
+    public void deleteAccount(String uid) {
+        UsersEntity user = usersRepository.findByUid(uid)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        List<MappingEntity> mappings = new ArrayList<>(mappingRepository.findByUserId(user.getId()));
+
+        for (MappingEntity mapping : mappings) {
+            TeamsEntity team = teamsRepository.findById(mapping.getTeamId()).orElse(null);
+            if (team == null) {
+                mappingRepository.deleteByUserIdAndTeamId(user.getId(), mapping.getTeamId());
+                continue;
+            }
+            if (team.getLeaderId().equals(user.getId())) {
+                teamsService.deleteTeam(uid, team.getId());
+            } else {
+                goalRepository.findByTeamIdAndUserId(team.getId(), user.getId())
+                        .forEach(goal -> goalRepository.deleteById(goal.getId()));
+                mappingRepository.deleteByUserIdAndTeamId(user.getId(), team.getId());
+            }
+        }
+
+        inviteRepository.deleteByUserId(user.getId());
+        usersRepository.deleteById(user.getId());
     }
 
     /**

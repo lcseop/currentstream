@@ -82,6 +82,9 @@ public class SplashActivity extends AppCompatActivity {
             SessionManager sm = SessionManager.getInstance();
             sm.setUid(data.optString("uid", ""));
             sm.setTag(data.optString("tag", ""));
+            if (data.has("id") && !data.isNull("id")) {
+                sm.setUserId(data.getLong("id"));
+            }
         } catch (Exception ignored) {
         }
     }

@@ -10,10 +10,22 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="팀 초대"
+        android:text="초대 알림"
         android:textStyle="bold"
         android:textSize="25sp"
         android:textColor="#333333" />
+
+    <TextView
+        android:id="@+id/invite_empty_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:gravity="center"
+        android:text="초대한 사람이 없어요."
+        android:textColor="#999999"
+        android:textSize="15sp"
+        android:visibility="gone"
+        tools:visibility="visible" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/invite_recycler"

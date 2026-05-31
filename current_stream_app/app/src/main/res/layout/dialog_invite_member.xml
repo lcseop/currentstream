@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="320dp"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    app:cardCornerRadius="10dp"
+    app:cardElevation="2dp"
+    app:strokeColor="#5038C5"
+    app:strokeWidth="1dp"
+    app:cardBackgroundColor="#F3F1FF">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="멤버 초대"
+            android:textColor="#222222"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:paddingBottom="12dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="팀원 초대"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/dialog_invite_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="(0/5)"
+                android:textSize="14sp"
+                android:textColor="#666666" />
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/dialog_invite_tag_edit"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/edit_text_bg_1"
+            android:paddingHorizontal="10dp"
+            android:hint="tag 입력 후 Enter"
+            android:inputType="text"
+            android:imeOptions="actionDone"
+            android:maxLines="1" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/dialog_invite_list"
+            android:layout_width="match_parent"
+            android:layout_height="140dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/edit_list_bg_1"
+            android:nestedScrollingEnabled="false"
+            android:padding="8dp"
+            tools:listitem="@layout/create_team_members" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/dialog_invite_cancel"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="취소"
+                android:textAllCaps="false"
+                app:cornerRadius="12dp"
+                app:backgroundTint="#EEEEEE"
+                android:textColor="#333333" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/dialog_invite_submit"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:text="초대하기"
+                android:textAllCaps="false"
+                android:enabled="false"
+                app:cornerRadius="12dp"
+                app:backgroundTint="#E8E6FF"
+                app:strokeColor="#5038C5"
+                app:strokeWidth="1dp"
+                android:textColor="#000000" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

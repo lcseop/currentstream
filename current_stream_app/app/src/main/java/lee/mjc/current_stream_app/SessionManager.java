@@ -6,6 +6,7 @@ public class SessionManager {
     private String idToken;
     private String uid;        // Firebase uid
     private String tag;
+    private Long userId;       // DB user id
     private Long currentTeamId;
 
     private SessionManager() {}
@@ -41,11 +42,27 @@ public class SessionManager {
         return tag;
     }
 
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
     public void setCurrentTeamId(Long teamId) {
         this.currentTeamId = teamId;
     }
 
     public Long getCurrentTeamId() {
         return currentTeamId;
+    }
+
+    public void clear() {
+        idToken = null;
+        uid = null;
+        tag = null;
+        userId = null;
+        currentTeamId = null;
     }
 }

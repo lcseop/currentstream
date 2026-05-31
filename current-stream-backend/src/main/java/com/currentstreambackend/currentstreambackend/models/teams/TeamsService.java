@@ -12,6 +12,7 @@ import com.currentstreambackend.currentstreambackend.models.users.UsersEntity;
 import com.currentstreambackend.currentstreambackend.models.users.UsersRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -119,7 +120,12 @@ public class TeamsService {
         // 태그로 초대 대상을 찾음
         UsersEntity target = usersRepository.findByTag(tag).orElseThrow(() -> new RuntimeException("Target not found"));
 
-        // 초대 대상이 팀에 이미 있는 경우 런타임 에러 발생
+        // 이미 팀원인 경우
+        if (mappingRepository.existsByUserIdAndTeamId(target.getId(), teamId)) {
+            throw new RuntimeException("Already in team");
+        }
+
+        // 이미 초대 대기 중인 경우
         boolean exists = inviteRepository.existsByTeamIdAndUserIdAndStatus(teamId, target.getId(), 0);
         if (exists) throw new RuntimeException("Already invited");
 
@@ -214,10 +220,61 @@ public class TeamsService {
     }
 
     /**
+     * 팀 멤버 목록 조회
+     */
+    public List<TeamMemberDto> getTeamMembers(String uid, Long teamId) {
+        UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
+        TeamsEntity team = teamsRepository.findById(teamId).orElseThrow(() -> new RuntimeException("Team not found"));
+
+        if (!mappingRepository.existsByUserIdAndTeamId(user.getId(), teamId)) {
+            throw new RuntimeException("Not team user");
+        }
+
+        return mappingRepository.findByTeamId(teamId)
+                .stream()
+                .map(m -> {
+                    UsersEntity member = usersRepository.findById(m.getUserId())
+                            .orElseThrow(() -> new RuntimeException("Member not found"));
+                    TeamMemberDto dto = new TeamMemberDto();
+                    dto.setUserId(member.getId());
+                    dto.setName(member.getName());
+                    dto.setTag(member.getTag());
+                    dto.setUserColor(m.getUserColor());
+                    dto.setLeader(team.getLeaderId().equals(member.getId()));
+                    return dto;
+                })
+                .toList();
+    }
+
+    /**
+     * 팀 정보 수정 (팀장 전용)
+     */
+    public TeamsDto updateTeam(String uid, Long teamId, String name, LocalDate endDate) {
+        UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
+        TeamsEntity team = teamsRepository.findById(teamId).orElseThrow(() -> new RuntimeException("Team not found"));
+
+        if (!team.getLeaderId().equals(user.getId())) {
+            throw new RuntimeException("Not leader");
+        }
+
+        team.setTeamName(name);
+        team.setEndDate(endDate);
+
+        teamLogsService.createLog(
+                team.getId(),
+                user.getId(),
+                user.getName() + "님이 팀 정보를 수정했습니다."
+        );
+
+        return TeamsDto.fromEntity(teamsRepository.save(team));
+    }
+
+    /**
      * 팀 탈퇴
      * @param uid
      * @param teamId
      */
+    @Transactional
     public void leaveTeam(String uid, Long teamId) {
         // 사용자와 팀 행을 불러옴
         UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
@@ -243,6 +300,7 @@ public class TeamsService {
      * @param uid
      * @param teamId
      */
+    @Transactional
     public void deleteTeam(String uid, Long teamId) {
         // 사용자와 팀 행을 불러옴
         UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));

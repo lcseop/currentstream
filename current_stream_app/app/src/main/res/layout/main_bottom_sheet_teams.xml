@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -20,5 +21,17 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
         tools:listitem="@layout/main_bottom_sheet_team_item" />
+
+    <Button
+        android:id="@+id/teams_sheet_create_btn"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="16dp"
+        android:text="팀 만들기"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:backgroundTint="@null"
+        android:background="@drawable/edit_btn_bg_3"
+        android:textColor="@color/white" />
 
 </LinearLayout>

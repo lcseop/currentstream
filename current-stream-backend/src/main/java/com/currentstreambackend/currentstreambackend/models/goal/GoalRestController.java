@@ -18,7 +18,18 @@ public class GoalRestController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<GoalDto>> createGoal(@RequestHeader("uid") String uid, @RequestBody Map<String, String> body) {
-        GoalDto result = goalService.createGoal(uid, Long.parseLong(body.get("teamId")), body.get("text"), body.get("remark"), LocalDate.parse(body.get("endDate")));
+        Long targetUserId = null;
+        if (body.containsKey("targetUserId") && body.get("targetUserId") != null && !body.get("targetUserId").isEmpty()) {
+            targetUserId = Long.parseLong(body.get("targetUserId"));
+        }
+        GoalDto result = goalService.createGoal(
+                uid,
+                Long.parseLong(body.get("teamId")),
+                body.get("text"),
+                body.get("remark"),
+                LocalDate.parse(body.get("endDate")),
+                targetUserId
+        );
         return ResponseEntity.status(201).body(
                 ApiResponse.make(ResponseCode.insert_ok, "goal created", result)
         );
@@ -29,6 +40,14 @@ public class GoalRestController {
         List<GoalDto> result = goalService.getGoals(uid, teamId);
         return ResponseEntity.ok(
                 ApiResponse.make(ResponseCode.select_ok, "goal list", result)
+        );
+    }
+
+    @GetMapping("/team/{teamId}/all")
+    public ResponseEntity<ApiResponse<List<GoalDto>>> getAllTeamGoals(@RequestHeader("uid") String uid, @PathVariable Long teamId) {
+        List<GoalDto> result = goalService.getAllTeamGoals(uid, teamId);
+        return ResponseEntity.ok(
+                ApiResponse.make(ResponseCode.select_ok, "team goal list", result)
         );
     }
 

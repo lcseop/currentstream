@@ -104,6 +104,40 @@ public class TeamsRestController {
     }
 
     /**
+     * 팀 멤버 목록 조회
+     */
+    @GetMapping("/{teamId}/members")
+    public ResponseEntity<ApiResponse<List<TeamMemberDto>>> getTeamMembers(
+            @RequestHeader("uid") String uid,
+            @PathVariable Long teamId
+    ) {
+        List<TeamMemberDto> result = teamsService.getTeamMembers(uid, teamId);
+        return ResponseEntity.ok(
+                ApiResponse.make(ResponseCode.select_ok, "team members", result)
+        );
+    }
+
+    /**
+     * 팀 정보 수정 (팀장 전용)
+     */
+    @PatchMapping("/{teamId}")
+    public ResponseEntity<ApiResponse<TeamsDto>> updateTeam(
+            @RequestHeader("uid") String uid,
+            @PathVariable Long teamId,
+            @RequestBody Map<String, String> body
+    ) {
+        TeamsDto result = teamsService.updateTeam(
+                uid,
+                teamId,
+                body.get("name"),
+                LocalDate.parse(body.get("endDate"))
+        );
+        return ResponseEntity.ok(
+                ApiResponse.make(ResponseCode.update_ok, "team updated", result)
+        );
+    }
+
+    /**
      * 팀 탈퇴
      * @param uid
      * @param teamId

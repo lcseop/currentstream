@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="320dp"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    app:cardCornerRadius="10dp"
+    app:cardElevation="2dp"
+    app:strokeColor="#5038C5"
+    app:strokeWidth="1dp"
+    app:cardBackgroundColor="#F3F1FF">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="팀 정보 수정"
+            android:textColor="#222222"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:paddingBottom="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="팀 이름"
+            android:textSize="16sp" />
+
+        <EditText
+            android:id="@+id/dialog_teams_edit_name"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/edit_text_bg_1"
+            android:paddingHorizontal="10dp"
+            android:inputType="text"
+            android:maxLength="100" />
+
+        <TextView
+            android:id="@+id/dialog_teams_edit_name_warn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/register_red"
+            android:textSize="12sp"
+            android:visibility="invisible" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="프로젝트 마감일"
+            android:textSize="16sp" />
+
+        <EditText
+            android:id="@+id/dialog_teams_edit_date"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/edit_text_bg_1"
+            android:paddingHorizontal="10dp"
+            android:focusable="false"
+            android:clickable="true"
+            android:inputType="none" />
+
+        <TextView
+            android:id="@+id/dialog_teams_edit_date_warn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/register_red"
+            android:textSize="12sp"
+            android:visibility="invisible" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/dialog_teams_edit_cancel"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="취소"
+                android:textAllCaps="false"
+                app:cornerRadius="12dp"
+                app:backgroundTint="#EEEEEE"
+                android:textColor="#333333" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/dialog_teams_edit_save"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:text="저장"
+                android:textAllCaps="false"
+                app:cornerRadius="12dp"
+                app:backgroundTint="#E8E6FF"
+                app:strokeColor="#5038C5"
+                app:strokeWidth="1dp"
+                android:textColor="#000000" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

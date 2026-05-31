@@ -38,27 +38,39 @@ public class GoalService {
      * @param endDate
      * @return 생성한 목표 행을 불러옴
      */
-    public GoalDto createGoal(String uid, Long teamId, String text, String remark, LocalDate endDate) {
-        // 사용자 행을 불러옴
+    public GoalDto createGoal(String uid, Long teamId, String text, String remark, LocalDate endDate, Long targetUserId) {
         UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
+        TeamsEntity team = teamsRepository.findById(teamId).orElseThrow(() -> new RuntimeException("Team not found"));
 
-        // 목표가 할당된 사용자가 해당 팀에 있는지 확인
         boolean isMember = mappingRepository.existsByUserIdAndTeamId(user.getId(), teamId);
         if (!isMember) throw new RuntimeException("Not team user");
 
-        // 새로운 목표 엔티티 생성 후, 받아온 값들을 집어넣음
+        Long assignUserId = user.getId();
+        if (targetUserId != null && !targetUserId.equals(user.getId())) {
+            if (!team.getLeaderId().equals(user.getId())) {
+                throw new RuntimeException("Not leader");
+            }
+            if (!mappingRepository.existsByUserIdAndTeamId(targetUserId, teamId)) {
+                throw new RuntimeException("Target not in team");
+            }
+            assignUserId = targetUserId;
+        }
+
+        UsersEntity assignee = usersRepository.findById(assignUserId)
+                .orElseThrow(() -> new RuntimeException("Assignee not found"));
+
         GoalEntity goal = new GoalEntity();
         goal.setGoalText(text);
         goal.setRemark(remark);
         goal.setStatus(0);
         goal.setGoalEndDate(endDate);
-        goal.setUserId(user.getId());
+        goal.setUserId(assignUserId);
         goal.setTeamId(teamId);
 
         teamLogsService.createLog(
                 teamId,
                 user.getId(),
-                user.getName() + "님에게 " + shorten(goal.getGoalText(), 10) + "목표가 추가되었습니다."
+                assignee.getName() + "님에게 " + shorten(goal.getGoalText(), 10) + " 목표가 추가되었습니다."
         );
 
         return GoalDto.fromEntity(goalRepository.save(goal));
@@ -91,21 +103,21 @@ public class GoalService {
                 teamLogsService.createLog(
                         team.getId(),
                         user.getId(),
-                        user.getName() + "님의 " + shorten(goal.getGoalText(), 10) + "목표가 진행 중으로 바뀌었습니다."
+                        user.getName() + "님의 " + shorten(goal.getGoalText(), 10) + " 목표가 진행 중으로 바뀌었습니다."
                 );
                 break;
             case 1 :
                 teamLogsService.createLog(
                         team.getId(),
                         user.getId(),
-                        user.getName() + "님이 " + shorten(goal.getGoalText(), 10) + "목표를 달성하셨습니다."
+                        user.getName() + "님이 " + shorten(goal.getGoalText(), 10) + " 목표를 달성하셨습니다."
                 );
                 break;
             case 2 :
                 teamLogsService.createLog(
                         team.getId(),
                         user.getId(),
-                        user.getName() + "님의 " + shorten(goal.getGoalText(), 10) + "목표가 삭제되었습니다."
+                        user.getName() + "님의 " + shorten(goal.getGoalText(), 10) + " 목표가 삭제되었습니다."
                 );
                 break;
         }
@@ -135,7 +147,7 @@ public class GoalService {
         teamLogsService.createLog(
                 team.getId(),
                 user.getId(),
-                user.getName() + "님의 " + shorten(goal.getGoalText(), 10) + "목표가 삭제되었습니다."
+                user.getName() + "님의 " + shorten(goal.getGoalText(), 10) + " 목표가 삭제되었습니다."
         );
 
         goalRepository.deleteById(goalId);
@@ -147,11 +159,27 @@ public class GoalService {
      * @return 사용자가 가지고 있는 목표 리스트를 불러옴
      */
     public List<GoalDto> getGoals(String uid, Long teamId) {
-        // 사용자 행을 불러옴
         UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
 
         return goalRepository.findByTeamIdAndUserId(teamId, user.getId())
                 .stream()
+                .map(GoalDto::fromEntity)
+                .toList();
+    }
+
+    /**
+     * 팀 전체 목표 조회 (팀원 전용)
+     */
+    public List<GoalDto> getAllTeamGoals(String uid, Long teamId) {
+        UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!mappingRepository.existsByUserIdAndTeamId(user.getId(), teamId)) {
+            throw new RuntimeException("Not team user");
+        }
+
+        return goalRepository.findByTeamId(teamId)
+                .stream()
+                .filter(g -> g.getStatus() != 2)
                 .map(GoalDto::fromEntity)
                 .toList();
     }

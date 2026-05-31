@@ -65,4 +65,15 @@ public class UsersRestController {
                 ApiResponse.make(ResponseCode.select_ok, "user found", result)
         );
     }
+
+    /**
+     * 회원 탈퇴
+     */
+    @DeleteMapping
+    public ResponseEntity<ApiResponse<Void>> deleteAccount(@RequestHeader("uid") String uid) {
+        usersService.deleteAccount(uid);
+        return ResponseEntity.ok(
+                ApiResponse.make(ResponseCode.delete_ok, "account deleted", null)
+        );
+    }
 }
