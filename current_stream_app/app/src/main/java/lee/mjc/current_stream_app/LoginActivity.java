@@ -84,6 +84,7 @@ public class LoginActivity extends AppCompatActivity {
             // 회원가입 화면으로 값 전달
             intent.putExtra("email", email);
 
+            // 액티비티 이동
             startActivity(intent);
         });
 
@@ -92,7 +93,10 @@ public class LoginActivity extends AppCompatActivity {
         loginBtn.setOnClickListener((v) -> {
             String email = loginIdEdit.getText().toString();
             String password = loginPwEdit.getText().toString();
+            // 예외 처리
             if (email.isEmpty() || password.isEmpty()) return;
+
+            // 로그인하는 동안에 로딩 창 보이게 하기
             runOnUiThread(() -> {
                 loadingOverlay.setVisibility(View.VISIBLE);
             });
@@ -102,7 +106,7 @@ public class LoginActivity extends AppCompatActivity {
                     // 이메일, 비밀번호 기입
                     .signInWithEmailAndPassword(email, password)
                     .addOnCompleteListener(task -> {
-                        // 로그인 정상 작동되는지 확인
+                        // 로그인 정상적으로 되는지 Firebase에서 확인
                         if (task.isSuccessful()) {
                             // Firebase에 로그인
                             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
@@ -139,7 +143,9 @@ public class LoginActivity extends AppCompatActivity {
                                     errorMessage = "알 수 없는 이유로 로그인에 실패했습니다.";
                                     Log.e("LOGIN", "로그인 실패", e);
                                 }
+                                // 로딩 창 숨기기
                                 loadingOverlay.setVisibility(View.GONE);
+                                // 대화상자로 에러 메시지 출력
                                 CommonDialog dig = new CommonDialog(LoginActivity.this, errorMessage, "확인");
                                 dig.setOnConfirmListener(view -> {
                                     dig.dismiss();
@@ -152,7 +158,7 @@ public class LoginActivity extends AppCompatActivity {
 
         // 구글 로그인 옵션을 담는 변수를 Builder 패턴으로 생성
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(getString(R.string.default_web_client_id)) // ✅ 중요
+                .requestIdToken(getString(R.string.default_web_client_id))
                 .requestEmail()
                 .build();
 
@@ -173,7 +179,7 @@ public class LoginActivity extends AppCompatActivity {
     // 로그인 정보를 토큰을 통해 서버로 보내는 메소드
     private void sendTokenToServer(String idToken) {
 
-        // OkHttp를 이용해 서버로 보내기 위해 객체 생성
+        // OkHttp를 이용해 백엔드 서버로 보내기 위해 객체 생성
         // token을 json 형태로 담음
         String json = "{\"idToken\":\"" + idToken + "\"}";
         // json을 requestBody로 변환
@@ -190,6 +196,7 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> {
+                    // 로딩 창 숨기고 대화 상자 출력
                     loadingOverlay.setVisibility(View.GONE);
                     CommonDialog dig = new CommonDialog(LoginActivity.this, "서버와 응답이 되지 않습니다.", "확인");
                     dig.setOnConfirmListener(view -> {
@@ -203,19 +210,22 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
 
+                // 응답 Body가 null이 아니면 응답 json을 받아옴
                 String responseBody =
                         response.body() != null ? response.body().string() : "";
 
+                // 응답 코드를 받아옴 (201, 500 등)
                 int code = response.code();
 
-                Log.d("API", "code=" + code);
-                Log.d("API", responseBody);
+                Log.d("response", "code: " + code);
+                Log.d("response", responseBody);
 
                 runOnUiThread(() -> {
-
+                    // 로딩 창 숨기기
                     loadingOverlay.setVisibility(View.GONE);
                     String errorMessage = "";
 
+                    // 응답 코드에 따라 알맞은 String 변수에 오류 메시지 할당
                     if (code >= 200 && code < 300) {
                         saveUserInfoFromLogin(responseBody);
                         moveToMain();
@@ -234,8 +244,9 @@ public class LoginActivity extends AppCompatActivity {
                     else {
                         errorMessage = "로그인 실패";
                     }
-                    loadingOverlay.setVisibility(View.GONE);
-                    if (! errorMessage.isEmpty()) {
+
+                    // 에러 메시지가 비워져 있지 않다면 확인용 대화 상자 출력
+                    if (!errorMessage.isEmpty()) {
                         CommonDialog dig = new CommonDialog(LoginActivity.this, errorMessage, "확인");
                         dig.setOnConfirmListener(view -> {
                             dig.dismiss();
@@ -247,7 +258,7 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
-    // 로그인 성공 시 MainActivity로 Intent 이동
+    // 로그인 성공 시 MainActivity로 Intent 및 액티비티 이동
     private void moveToMain() {
         Intent intent = new Intent(LoginActivity.this, MainActivity.class);
         startActivity(intent);
@@ -257,10 +268,13 @@ public class LoginActivity extends AppCompatActivity {
     // 로그인 응답에서 uid, tag, userId를 SessionManager에 저장
     private void saveUserInfoFromLogin(String responseBody) {
         try {
+            // JSONObject 클래스를 통해 JSON을 임시로 저장함
             JSONObject root = new JSONObject(responseBody);
             JSONObject data = root.optJSONObject("responseData");
             if (data == null) return;
 
+            // SessionManager의 인스턴스를 받아오고, Setter를 통해 uid, tag를 저장함
+            // 그냥 uid는 Firebase의 uid이고, userId는 DB의 user 테이블 id 속성임 (순번)
             SessionManager sm = SessionManager.getInstance();
             sm.setUid(data.optString("uid", ""));
             sm.setTag(data.optString("tag", ""));
@@ -268,6 +282,7 @@ public class LoginActivity extends AppCompatActivity {
                 sm.setUserId(data.getLong("id"));
             }
         } catch (Exception ignored) {
+            Log.e("JSON", "json 저장 에러: " + ignored.toString());
         }
     }
 
@@ -314,6 +329,7 @@ public class LoginActivity extends AppCompatActivity {
                                 });
                     } else {
                         runOnUiThread(() -> {
+                            // 구글 로그인 실패 시 로딩 창 숨기고 대화상자 출력
                             loadingOverlay.setVisibility(View.GONE);
                             CommonDialog dig = new CommonDialog(LoginActivity.this, "구글 로그인에 실패했습니다.", "확인");
                             dig.setOnConfirmListener(view -> {

@@ -1,6 +1,7 @@
 package lee.mjc.current_stream_app;
 
 // 로그인 상태를 저장하는 싱글톤 클래스
+// 앱이 실행되어 있는 동안 싱글톤을 이용해 계속해서 로그인 상태, 현재 선택 팀을 저장해놓고 있음.
 public class SessionManager {
     private static SessionManager instance;
     private String idToken;

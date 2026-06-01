@@ -39,7 +39,9 @@ import okhttp3.Response;
 // 로그인 후 메인 화면 (팀 선택, 내 작업, 최근 현황, FAB)
 public class MainActivity extends AppCompatActivity {
 
+    // 접혀있을 때 최근 활동 갯수
     private static final int TEAM_LOGS_COLLAPSED_COUNT = 3;
+    // 더보기를 열었을 때 최근 활동 최대 갯수
     private static final int TEAM_LOGS_MAX_COUNT = 10;
 
     Button logoutBtn, noTeamLogoutBtn, noTeamCreateBtn;
@@ -70,12 +72,18 @@ public class MainActivity extends AppCompatActivity {
     private TextView btnTeamLogsMore;
     private FloatingActionButton mainFab;
 
+    // 모든 팀 최근 활동 리스트
     private final List<TeamLogItem> allTeamLogs = new ArrayList<>();
+    // 최근 활동이 펼쳐져있는지 여부
     private boolean teamLogsExpanded = false;
 
+    // 팀 리스트
     private final List<TeamItem> teamList = new ArrayList<>();
+    // 진행 중인 목표 리스트
     private final List<GoalItem> progressGoals = new ArrayList<>();
+    // 완료 목표 리스트
     private final List<GoalItem> completeGoals = new ArrayList<>();
+    // 최근 활동 리스트
     private final List<TeamLogItem> teamLogs = new ArrayList<>();
 
     private MyGoalAdapter progressAdapter;
@@ -83,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
     private TeamLogAdapter teamLogAdapter;
     private FabSpeedDialMenu mainFabMenu;
 
-    // 당겨서 새로고침·팀/목표 로딩 상태
+    // 당겨서 새로고침, 팀/목표 로딩 상태
     private int pendingRefreshSections = 0;
     private boolean refreshInProgress = false;
     private boolean isLeader = false;
@@ -91,7 +99,7 @@ public class MainActivity extends AppCompatActivity {
     private Long lastGoalsTeamId = null;
 
     private final Handler logTimeHandler = new Handler(Looper.getMainLooper());
-    // 팀 로그 'N분 전' 표시를 1분마다 갱신
+    // 최근 활동에 몇 분 전 표시를 백그라운드를 통해 1분마다 갱신
     private final Runnable logTimeRefreshRunnable = new Runnable() {
         @Override
         public void run() {
@@ -102,7 +110,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    // 화면 초기화, 리스트·FAB 연결, uid 확인 후 팀/목표 불러오기
+    // 화면 초기화, 리스트와 플로팅 버튼 연결, uid 확인 후 팀/목표 불러오기
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -151,7 +159,6 @@ public class MainActivity extends AppCompatActivity {
         rvComplete.setAdapter(completeAdapter);
         rvTeamLogs.setAdapter(teamLogAdapter);
 
-        // 초기 상태: 진행 중은 펼침, 완료는 접힘
         rvProgress.setVisibility(View.VISIBLE);
         tvProgressToggle.setText("▽");
         rvComplete.setVisibility(View.GONE);
