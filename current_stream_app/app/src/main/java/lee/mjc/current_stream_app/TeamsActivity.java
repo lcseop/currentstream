@@ -438,9 +438,13 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
             }
         }
 
+        Long myUserId = getMyUserId();
         members.sort((a, b) -> {
-            if (a.leader == b.leader) return a.name.compareTo(b.name);
-            return a.leader ? -1 : 1;
+            boolean aMe = myUserId != null && myUserId == a.userId;
+            boolean bMe = myUserId != null && myUserId == b.userId;
+            if (aMe != bMe) return aMe ? -1 : 1;
+            if (a.leader != b.leader) return a.leader ? -1 : 1;
+            return a.name.compareTo(b.name);
         });
 
         syncMyUserIdFromMembers(parsedMembers);

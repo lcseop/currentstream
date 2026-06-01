@@ -96,7 +96,7 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <androidx.cardview.widget.CardView
+                <com.google.android.material.card.MaterialCardView
                     android:id="@+id/main_team_overview_card"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -104,13 +104,15 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="?attr/selectableItemBackground"
-                    app:cardElevation="4dp"
-                    app:cardCornerRadius="12dp">
+                    app:cardBackgroundColor="@color/main_1"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="#E8E8F0"
+                    app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="@color/main_1"
                         android:orientation="vertical"
                         android:padding="20dp">
 
@@ -193,65 +195,41 @@
 
                     </LinearLayout>
 
-                </androidx.cardview.widget.CardView>
+                </com.google.android.material.card.MaterialCardView>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="내 작업"
+                        android:textColor="#333333"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/main_my_task_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="0개"
+                        android:textColor="#999999"
+                        android:textSize="14sp" />
+                </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/main_my_task_layout"
+                    android:layout_marginTop="8dp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="5dp"
                     android:background="@drawable/edit_list_bg_1"
                     android:orientation="vertical"
                     android:padding="16dp">
-
-                    <!-- 헤더 -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="내 작업"
-                                android:textColor="#333333"
-                                android:textSize="20sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/main_my_task_tag"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:text=""
-                                android:textColor="#808080"
-                                android:layout_marginLeft="5dp"
-                                android:textSize="15sp"
-                                android:textStyle="bold" />
-
-                        </LinearLayout>
-
-                        <TextView
-                            android:id="@+id/main_my_task_count"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="3개"
-                            android:textColor="#999999"
-                            android:textSize="14sp" />
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginTop="10dp"
-                        android:layout_marginBottom="10dp"
-                        android:background="#000000"
-                        android:id="@+id/login_line" />
 
                     <!-- 진행 중 -->
                     <LinearLayout
@@ -271,9 +249,11 @@
 
                         <TextView
                             android:id="@+id/tv_progress_toggle"
-                            android:layout_width="4dp"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="6dp"
+                            android:includeFontPadding="false"
+                            android:minWidth="18dp"
                             android:text="▽"
                             android:textSize="15sp" />
 
@@ -311,6 +291,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="완료"
+                            android:textColor="@color/goal_complete_green"
                             android:textSize="15sp"
                             android:textStyle="bold" />
 
@@ -319,7 +300,10 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="6dp"
+                            android:includeFontPadding="false"
+                            android:minWidth="18dp"
                             android:text="▽"
+                            android:textColor="@color/goal_complete_green"
                             android:textSize="15sp" />
 
                     </LinearLayout>
@@ -358,7 +342,9 @@
                     android:id="@+id/main_team_list"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:clipToPadding="false"
                     android:nestedScrollingEnabled="false"
+                    android:paddingBottom="4dp"
                     tools:listitem="@layout/main_teams_members" />
 
                 <TextView
@@ -384,26 +370,64 @@
                     android:visibility="gone" />
 
                 <LinearLayout
+                    android:id="@+id/main_account_section"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="30dp"
-                    android:gravity="center_horizontal"
-                    android:orientation="vertical">
+                    android:layout_marginTop="24dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="@drawable/edit_list_bg_1"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                    <Button
-                        android:id="@+id/main_team_logout"
+                    <TextView
+                        android:id="@+id/main_user_nickname"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:text="닉네임"
+                        android:textColor="#333333"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/main_my_task_tag"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:background="@drawable/tag_badge_bg"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="3dp"
+                        android:textColor="#5038C5"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:visibility="gone"
+                        tools:text="user#1234"
+                        tools:visibility="visible" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/main_team_logout"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:layout_marginTop="15dp"
                         android:text="로그아웃"
-                        android:backgroundTint="#FFCDD2"
-                        android:textColor="#D32F2F" />
+                        android:textAllCaps="false"
+                        android:textColor="#D32F2F"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/bg_dialog_btn_cancel_red"
+                        app:cornerRadius="12dp"
+                        app:rippleColor="@color/dialog_btn_ripple"
+                        app:strokeColor="#601414"
+                        app:strokeWidth="1.5dp" />
 
                     <TextView
                         android:id="@+id/main_team_delete_account"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:padding="8dp"
+                        android:layout_marginTop="2dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:paddingVertical="10dp"
                         android:text="회원 탈퇴"
                         android:textColor="#999999"
                         android:textSize="14sp" />

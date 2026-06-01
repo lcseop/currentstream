@@ -59,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar pbAll;
 
     private TextView tvMyTaskCount;
+    private TextView tvUserNickname;
     private TextView tvMyTaskTag;
     private TextView tvNoTeamTag;
     private TextView tvProgressToggle;
@@ -134,6 +135,7 @@ public class MainActivity extends AppCompatActivity {
         pbAll = findViewById(R.id.main_team_all_progress);
 
         tvMyTaskCount = findViewById(R.id.main_my_task_count);
+        tvUserNickname = findViewById(R.id.main_user_nickname);
         tvMyTaskTag = findViewById(R.id.main_my_task_tag);
         tvNoTeamTag = findViewById(R.id.main_no_team_tag);
         tvProgressToggle = findViewById(R.id.tv_progress_toggle);
@@ -225,11 +227,13 @@ public class MainActivity extends AppCompatActivity {
     // 세션에 저장된 사용자 태그를 화면에 표시
     private void applyUserTag() {
         String tag = SessionManager.getInstance().getTag();
-        if (tag != null && !tag.isEmpty()) {
-            tvMyTaskTag.setText(tag);
-            if (tvNoTeamTag != null) {
-                tvNoTeamTag.setText(tag);
-            }
+        String name = SessionManager.getInstance().getUserName();
+        if (tvUserNickname != null) {
+            tvUserNickname.setText(name != null && !name.isEmpty() ? name : "사용자");
+        }
+        DialogUiHelper.applyTagBadge(tvMyTaskTag, tag);
+        if (tvNoTeamTag != null) {
+            DialogUiHelper.applyTagBadge(tvNoTeamTag, tag);
         }
     }
 
@@ -556,6 +560,13 @@ public class MainActivity extends AppCompatActivity {
             tvCompleteEmpty.setVisibility(View.GONE);
         }
         tvCompleteToggle.setText(completeSectionExpanded ? "▽" : "△");
+        updateMyTaskCount();
+    }
+
+    // 진행 중 목표 개수만 표시
+    private void updateMyTaskCount() {
+        if (tvMyTaskCount == null) return;
+        tvMyTaskCount.setText(progressGoals.size() + "개");
     }
 
     // nested scroll 안에서 목표 리스트 전체 높이를 잡아줌
@@ -574,7 +585,7 @@ public class MainActivity extends AppCompatActivity {
             int widthSpec = View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY);
             int height = 0;
             float density = getResources().getDisplayMetrics().density;
-            int defaultBottomMargin = Math.round(6 * density);
+            int defaultBottomMargin = Math.round(8 * density);
 
             for (int i = 0; i < adapter.getItemCount(); i++) {
                 int viewType = adapter.getItemViewType(i);
@@ -598,36 +609,6 @@ public class MainActivity extends AppCompatActivity {
             params.height = height;
             recyclerView.setLayoutParams(params);
         });
-    }
-
-    // 팀 로그 리스트 높이를 아이템 수에 맞게 조정
-    @SuppressWarnings("unchecked")
-    private void updateNestedRecyclerViewHeight(RecyclerView recyclerView) {
-        RecyclerView.Adapter adapter = recyclerView.getAdapter();
-        if (adapter == null || adapter.getItemCount() == 0) return;
-
-        int width = recyclerView.getWidth();
-        if (width <= 0) {
-            recyclerView.post(() -> updateNestedRecyclerViewHeight(recyclerView));
-            return;
-        }
-
-        int widthSpec = View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY);
-        int height = 0;
-        for (int i = 0; i < adapter.getItemCount(); i++) {
-            int viewType = adapter.getItemViewType(i);
-            RecyclerView.ViewHolder holder = adapter.createViewHolder(recyclerView, viewType);
-            adapter.onBindViewHolder(holder, i);
-            holder.itemView.measure(
-                    widthSpec,
-                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-            );
-            height += holder.itemView.getMeasuredHeight();
-        }
-
-        ViewGroup.LayoutParams params = recyclerView.getLayoutParams();
-        params.height = height;
-        recyclerView.setLayoutParams(params);
     }
 
     // 당겨서 새로고침 스피너 끔
@@ -736,7 +717,7 @@ public class MainActivity extends AppCompatActivity {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) return;
 
-        BottomSheetDialog dialog = new BottomSheetDialog(this);
+        final BottomSheetDialog dialog = new BottomSheetDialog(this);
         View view = LayoutInflater.from(this).inflate(R.layout.main_bottom_sheet_invite, null);
         dialog.setContentView(view);
 
@@ -754,6 +735,12 @@ public class MainActivity extends AppCompatActivity {
                     inviteList.remove(item);
                     if (adapterHolder[0] != null) adapterHolder[0].notifyDataSetChanged();
                     updateNotificationBadge(inviteList.size());
+                    if (inviteList.isEmpty()) {
+                        dialog.dismiss();
+                    } else {
+                        inviteEmptyTv.setVisibility(View.GONE);
+                        rvInvite.setVisibility(View.VISIBLE);
+                    }
                     loadTeamsAndGoals();
                 });
             }
@@ -1022,6 +1009,10 @@ public class MainActivity extends AppCompatActivity {
                                 for (TeamMemberItem member : members) {
                                     if (myUserId != null && myUserId == member.userId) {
                                         isLeader = member.leader;
+                                        if (member.name != null && !member.name.isEmpty()) {
+                                            SessionManager.getInstance().setUserName(member.name);
+                                            applyUserTag();
+                                        }
                                         break;
                                     }
                                 }
@@ -1048,10 +1039,7 @@ public class MainActivity extends AppCompatActivity {
                                     }
                                 }
 
-                                int myTotal = progressGoals.size() + completeGoals.size();
                                 double percent = teamTotal == 0 ? 0.0 : (teamCompleted * 100.0 / teamTotal);
-
-                                tvMyTaskCount.setText(myTotal + "개");
                                 tvTotalPercent.setText(String.format("%.1f%%", percent));
                                 pbAll.setProgress((int) Math.round(percent));
 
@@ -1271,6 +1259,9 @@ public class MainActivity extends AppCompatActivity {
                 long createdAtMillis = 0L;
                 if (obj.has("createdAtMillis") && !obj.isNull("createdAtMillis")) {
                     createdAtMillis = obj.getLong("createdAtMillis");
+                    if (createdAtMillis > 0L && createdAtMillis < 1_000_000_000_000L) {
+                        createdAtMillis *= 1000L;
+                    }
                 }
                 if (createdAtMillis <= 0L) {
                     createdAtMillis = DateTimeUtil.parseCreatedAtMillis(
@@ -1318,7 +1309,7 @@ public class MainActivity extends AppCompatActivity {
                         ? View.VISIBLE
                         : View.GONE
         );
-        rvTeamLogs.post(() -> updateNestedRecyclerViewHeight(rvTeamLogs));
+        rvTeamLogs.post(() -> updateRecyclerViewHeightFully(rvTeamLogs));
     }
 
     // 초대 수락/거절 API 호출

@@ -6,10 +6,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
 public class TeamLogsService {
+
+    private static final ZoneId SERVER_ZONE = ZoneId.of("Asia/Seoul");
 
     @Autowired
     private TeamLogsRepository teamLogsRepository;
@@ -27,7 +30,7 @@ public class TeamLogsService {
         log.setTeamId(teamId);
         log.setUserId(userId);
         log.setMessage(message);
-        log.setCreatedAt(LocalDateTime.now());
+        log.setCreatedAt(LocalDateTime.now(SERVER_ZONE));
 
         teamLogsRepository.save(log);
     }

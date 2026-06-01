@@ -3,45 +3,59 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:layout_marginStart="6dp"
     android:layout_marginBottom="2dp"
-    android:layout_marginLeft="6dp"
     app:cardCornerRadius="8dp"
     app:cardElevation="0dp">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="horizontal">
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:minHeight="48dp"
+        android:orientation="horizontal"
+        android:paddingVertical="6dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="4dp">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:id="@+id/create_team_list_name"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
 
-            android:text="이충섭"
-            android:textSize="20sp"/>
+            <TextView
+                android:id="@+id/create_team_list_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:text="이충섭"
+                android:textSize="18sp" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/create_team_list_id"
+            <TextView
+                android:id="@+id/create_team_list_id"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:background="@drawable/tag_badge_bg"
+                android:includeFontPadding="false"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp"
+                android:text="dik4321"
+                android:textColor="#5038C5"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
-            android:text="dik4321"
-            android:textColor="#B4B4B4"
-            android:textSize="12sp"
-
-            android:paddingLeft="6dp" />
+        <ImageButton
+            android:id="@+id/create_team_ban_btn"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="fitCenter"
+            android:src="@drawable/pic_ban" />
     </LinearLayout>
-
-    <ImageButton
-        android:layout_width="20dp"
-        android:layout_height="20dp"
-        android:layout_gravity="center|end"
-        android:id="@+id/create_team_ban_btn"
-
-        android:src="@drawable/pic_ban"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:scaleType="fitCenter"/>
-
 
 </androidx.cardview.widget.CardView>

@@ -4,6 +4,7 @@ import android.app.Dialog;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.view.KeyEvent;
+import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -50,11 +51,16 @@ public final class InviteMemberDialog {
             dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         }
 
-        EditText tagEdit = dialog.findViewById(R.id.dialog_invite_tag_edit);
+        View tagInputRoot = dialog.findViewById(R.id.dialog_invite_tag_input);
+        EditText tagEdit = tagInputRoot.findViewById(R.id.tag_input_edit);
+        MaterialButton addTagBtn = tagInputRoot.findViewById(R.id.tag_input_add_btn);
         TextView countTv = dialog.findViewById(R.id.dialog_invite_count);
         RecyclerView listRv = dialog.findViewById(R.id.dialog_invite_list);
         MaterialButton cancelBtn = dialog.findViewById(R.id.dialog_invite_cancel);
         MaterialButton submitBtn = dialog.findViewById(R.id.dialog_invite_submit);
+
+        DialogUiHelper.styleDialogCancelButton(cancelBtn);
+        DialogUiHelper.styleDialogPrimaryButton(submitBtn);
 
         OkHttpClient client = ApiHelper.CLIENT;
         List<InviteMember> inviteMembers = new ArrayList<>();
@@ -71,6 +77,10 @@ public final class InviteMemberDialog {
         });
         listRv.setAdapter(adapterHolder[0]);
         updateCount(countTv, inviteMembers);
+
+        addTagBtn.setOnClickListener(v ->
+                verifyAndAddTag(activity, client, teamId, tagEdit, inviteMembers, adapterHolder[0], countTv, submitBtn)
+        );
 
         tagEdit.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE

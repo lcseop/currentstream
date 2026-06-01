@@ -63,7 +63,7 @@ public class TeamMemberAdapter extends RecyclerView.Adapter<TeamMemberAdapter.Me
         if (holder.crownIv != null) {
             holder.crownIv.setVisibility(member.leader ? View.VISIBLE : View.GONE);
         }
-        holder.tagTv.setText(member.tag);
+        DialogUiHelper.applyTagBadge(holder.tagTv, member.tag);
 
         boolean canAddGoal = isLeader || (myUserId != null && myUserId == member.userId);
         holder.addBtn.setVisibility(canAddGoal ? View.VISIBLE : View.GONE);

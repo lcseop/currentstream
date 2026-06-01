@@ -1,0 +1,20 @@
+# Backend EC2 전용 — Spring Boot만 실행 (DB는 별도 EC2)
+# 사용: cp .env.backend.example .env 후 DB_HOST에 DB 서버 private IP 입력
+#       docker compose -f docker-compose.backend.yml up -d --build
+
+services:
+  backend:
+    build: .
+    container_name: currentstream-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:mysql://${DB_HOST}:3306/${MYSQL_DATABASE:-currentstream}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useSSL=false
+      DB_USERNAME: ${DB_USERNAME:-cs_user}
+      DB_PASSWORD: ${DB_PASSWORD:-cs_pass_change_me}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO:-update}
+      SPRING_JPA_SHOW_SQL: ${SPRING_JPA_SHOW_SQL:-false}
+      FIREBASE_CREDENTIALS_PATH: /run/secrets/firebase/serviceAccountKey.json
+    volumes:
+      - ./secrets/firebase:/run/secrets/firebase:ro

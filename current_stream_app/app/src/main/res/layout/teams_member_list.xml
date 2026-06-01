@@ -27,37 +27,48 @@
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:gravity="bottom"
-                    android:orientation="horizontal">
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@id/teams_list_btn_add"
+                    android:orientation="vertical">
 
-                    <TextView
-                        android:id="@+id/teams_list_detail_name"
+                    <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="김팀장"
-                        android:textColor="#333333"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-                    <ImageView
-                        android:id="@+id/teams_list_leader_crown"
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:layout_gravity="center_vertical"
-                        android:layout_marginStart="4dp"
-                        android:contentDescription="팀장"
-                        android:scaleType="fitCenter"
-                        android:src="@drawable/pic_crown"
-                        android:visibility="gone" />
+                        <TextView
+                            android:id="@+id/teams_list_detail_name"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="김팀장"
+                            android:textColor="#333333"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <ImageView
+                            android:id="@+id/teams_list_leader_crown"
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
+                            android:layout_marginStart="4dp"
+                            android:contentDescription="팀장"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/pic_crown"
+                            android:visibility="gone" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/teams_list_detail_id"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
+                        android:layout_marginTop="4dp"
+                        android:background="@drawable/tag_badge_bg"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="2dp"
                         android:text="imteamleader"
-                        android:textColor="#999999"
-                        android:textSize="14sp" />
+                        android:textColor="#5038C5"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
                 </LinearLayout>
 
                 <ImageButton
@@ -65,6 +76,7 @@
                     android:layout_width="25dp"
                     android:layout_height="25dp"
                     android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:scaleType="fitCenter"
                     android:src="@drawable/pic_addbtn" />

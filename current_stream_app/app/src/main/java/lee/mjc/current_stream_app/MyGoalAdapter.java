@@ -42,6 +42,11 @@ public class MyGoalAdapter extends RecyclerView.Adapter<MyGoalAdapter.GoalVH> {
     public void onBindViewHolder(@NonNull GoalVH holder, int position) {
         GoalItem item = goals.get(position);
         holder.nameTv.setText(item.goalText);
+        if (completedSection) {
+            holder.nameTv.setTextColor(0xFF1E7134);
+        } else {
+            holder.nameTv.setTextColor(0xFF333333);
+        }
 
         if (!completedSection && holder.deadlineTv != null) {
             holder.deadlineTv.setText(DateTimeUtil.formatRemainingDays(item.goalEndDate));

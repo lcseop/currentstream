@@ -1,10 +1,12 @@
 spring:
   application:
     name: current-stream-backend
+  jackson:
+    time-zone: Asia/Seoul
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/currentstream?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
     username: ${DB_USERNAME:cs_user}
-    password: ${DB_PASSWORD:dik1234!}
+    password: ${DB_PASSWORD:dik12345}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:

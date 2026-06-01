@@ -278,6 +278,7 @@ public class LoginActivity extends AppCompatActivity {
             SessionManager sm = SessionManager.getInstance();
             sm.setUid(data.optString("uid", ""));
             sm.setTag(data.optString("tag", ""));
+            sm.setUserName(data.optString("name", ""));
             if (data.has("id") && !data.isNull("id")) {
                 sm.setUserId(data.getLong("id"));
             }

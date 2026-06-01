@@ -1,7 +1,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.Current_stream_app" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+    <!-- 시스템 다크 모드여도 동일한 라이트 테마 유지 -->
+    <style name="Base.Theme.Current_stream_app" parent="Theme.Material3.Light.NoActionBar">
+        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
+        <item name="android:windowBackground">@color/main_bg</item>
+        <item name="colorSurface">@color/white</item>
+        <item name="colorOnSurface">#FF333333</item>
+        <item name="android:statusBarColor">@color/main_bg</item>
+        <item name="android:navigationBarColor">@color/white</item>
     </style>
 </resources>

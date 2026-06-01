@@ -51,17 +51,12 @@
                 android:textColor="#666666" />
         </LinearLayout>
 
-        <EditText
-            android:id="@+id/dialog_invite_tag_edit"
+        <include
+            android:id="@+id/dialog_invite_tag_input"
+            layout="@layout/include_tag_input_row"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/edit_text_bg_1"
-            android:paddingHorizontal="10dp"
-            android:hint="tag 입력 후 Enter"
-            android:inputType="text"
-            android:imeOptions="actionDone"
-            android:maxLines="1" />
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/dialog_invite_list"
@@ -87,9 +82,11 @@
                 android:layout_marginEnd="8dp"
                 android:text="취소"
                 android:textAllCaps="false"
+                android:textColor="#333333"
+                app:backgroundTint="@null"
+                android:background="@drawable/bg_dialog_btn_cancel"
                 app:cornerRadius="12dp"
-                app:backgroundTint="#EEEEEE"
-                android:textColor="#333333" />
+                app:rippleColor="@color/dialog_btn_ripple" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/dialog_invite_submit"
@@ -99,11 +96,11 @@
                 android:text="초대하기"
                 android:textAllCaps="false"
                 android:enabled="false"
+                android:textColor="#1A1A1A"
+                app:backgroundTint="@null"
+                android:background="@drawable/bg_dialog_btn_primary"
                 app:cornerRadius="12dp"
-                app:backgroundTint="#E8E6FF"
-                app:strokeColor="#5038C5"
-                app:strokeWidth="1dp"
-                android:textColor="#000000" />
+                app:rippleColor="@color/dialog_btn_ripple" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

@@ -7,10 +7,13 @@ import android.text.TextWatcher;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
+
+import com.google.android.material.button.MaterialButton;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -62,7 +65,9 @@ public class CreateTeamActivity extends AppCompatActivity {
 
         nameEdit = findViewById(R.id.create_team_name_edit);
         dateEdit = findViewById(R.id.create_team_date_edit);
-        usersEdit = findViewById(R.id.create_team_users_edit);
+        View tagInputRoot = findViewById(R.id.create_team_tag_input);
+        usersEdit = tagInputRoot.findViewById(R.id.tag_input_edit);
+        MaterialButton addTagBtn = tagInputRoot.findViewById(R.id.tag_input_add_btn);
         nameWarn = findViewById(R.id.create_team_name_warn);
         dateWarn = findViewById(R.id.create_team_date_warn);
         usersCountTv = findViewById(R.id.create_team_users_count);
@@ -89,6 +94,7 @@ public class CreateTeamActivity extends AppCompatActivity {
         setupNameValidation();
         setupDatePicker();
         setupInviteInput();
+        addTagBtn.setOnClickListener(v -> verifyAndAddInviteTag());
 
         backBtn.setOnClickListener(v -> finish());
         closeBtn.setOnClickListener(v -> finish());

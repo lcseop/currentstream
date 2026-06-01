@@ -9,4 +9,7 @@
     <color name="login_5">#F6F3FF</color>
     <color name="register_red">#DA3A3A</color>
     <color name="main_1">#FAFAFF</color>
+    <color name="main_bg">#F5F6FA</color>
+    <color name="dialog_btn_ripple">#335038C5</color>
+    <color name="goal_complete_green">#4CAF50</color>
 </resources>

@@ -42,7 +42,7 @@ public class CreateTeamMemberAdapter extends RecyclerView.Adapter<CreateTeamMemb
         InviteMember member = members.get(position);
         holder.nameTv.setVisibility(View.VISIBLE);
         holder.nameTv.setText(member.name);
-        holder.tagTv.setText(member.tag);
+        DialogUiHelper.applyTagBadge(holder.tagTv, member.tag);
 
         holder.removeBtn.setOnClickListener(v -> {
             int adapterPosition = holder.getBindingAdapterPosition();

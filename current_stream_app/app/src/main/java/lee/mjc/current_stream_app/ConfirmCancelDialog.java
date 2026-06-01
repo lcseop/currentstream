@@ -40,6 +40,11 @@ public class ConfirmCancelDialog extends Dialog {
         tvMessage.setText(message);
         btnConfirm.setText(confirmText);
         btnCancel.setText(cancelText);
+
+        btnCancel.setOnClickListener(v -> dismiss());
+
+        DialogUiHelper.styleDialogCancelButton(btnCancel);
+        DialogUiHelper.styleDialogPrimaryButton(btnConfirm);
     }
 
     // 확인 버튼 클릭 리스너 설정
@@ -47,8 +52,11 @@ public class ConfirmCancelDialog extends Dialog {
         btnConfirm.setOnClickListener(listener);
     }
 
-    // 취소 버튼 클릭 리스너 설정
+    // 취소 버튼 클릭 리스너 설정 (기본 동작: dismiss 후 listener)
     public void setOnCancelClickListener(View.OnClickListener listener) {
-        btnCancel.setOnClickListener(listener);
+        btnCancel.setOnClickListener(v -> {
+            dismiss();
+            listener.onClick(v);
+        });
     }
 }

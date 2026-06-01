@@ -6,6 +6,7 @@ import org.json.JSONArray;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -56,20 +57,27 @@ public final class DateTimeUtil {
             }
 
             if (raw instanceof Number) {
-                return ((Number) raw).longValue();
+                long value = ((Number) raw).longValue();
+                // epoch 초 단위로 오는 경우 (ms는 보통 13자리)
+                if (value > 0L && value < 1_000_000_000_000L) {
+                    return value * 1000L;
+                }
+                return value;
             }
 
             String text = String.valueOf(raw).trim();
             if (text.isEmpty() || "null".equals(text)) return 0L;
 
-            LocalDateTime time;
             if (text.endsWith("Z")) {
                 return java.time.Instant.parse(text).toEpochMilli();
+            }
+            if (text.contains("+") || text.matches(".*-\\d{2}:\\d{2}$")) {
+                return OffsetDateTime.parse(text).toInstant().toEpochMilli();
             }
             if (text.contains(" ")) {
                 text = text.replace(" ", "T");
             }
-            time = LocalDateTime.parse(text, FLEXIBLE_LOCAL);
+            LocalDateTime time = LocalDateTime.parse(text, FLEXIBLE_LOCAL);
             return time.atZone(SERVER_ZONE).toInstant().toEpochMilli();
         } catch (Exception ignored) {
             return 0L;

@@ -2,6 +2,7 @@
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="320dp"
     android:layout_height="wrap_content"
     android:layout_gravity="center"
@@ -38,13 +39,64 @@
                 android:text="대상 멤버"
                 android:textSize="16sp" />
 
+            <LinearLayout
+                android:id="@+id/dialog_teams_add_member_selector"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/edit_list_bg_1"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="12dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/dialog_teams_add_member_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#333333"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        tools:text="홍길동 (팀장)" />
+
+                    <TextView
+                        android:id="@+id/dialog_teams_add_member_tag"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:background="@drawable/tag_badge_bg"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="2dp"
+                        android:textColor="#5038C5"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        tools:text="user#1234" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/dialog_teams_add_member_arrow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="▽"
+                    android:textColor="@color/login_1"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
             <Spinner
                 android:id="@+id/dialog_teams_add_member_spinner"
                 android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="6dp"
-                android:background="@drawable/edit_text_bg_1"
-                android:paddingHorizontal="8dp" />
+                android:layout_height="0dp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/dialog_teams_add_target"
@@ -135,8 +187,10 @@
                     android:text="취소"
                     android:textAllCaps="false"
                     android:textColor="#333333"
-                    app:backgroundTint="#EEEEEE"
-                    app:cornerRadius="12dp" />
+                    app:backgroundTint="@null"
+                    android:background="@drawable/bg_dialog_btn_cancel"
+                    app:cornerRadius="12dp"
+                    app:rippleColor="@color/dialog_btn_ripple" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/dialog_teams_add_submit"
@@ -146,11 +200,11 @@
                     android:enabled="false"
                     android:text="추가"
                     android:textAllCaps="false"
-                    android:textColor="#000000"
-                    app:backgroundTint="#E8E6FF"
+                    android:textColor="#1A1A1A"
+                    app:backgroundTint="@null"
+                    android:background="@drawable/bg_dialog_btn_primary"
                     app:cornerRadius="12dp"
-                    app:strokeColor="#5038C5"
-                    app:strokeWidth="1dp" />
+                    app:rippleColor="@color/dialog_btn_ripple" />
             </LinearLayout>
         </LinearLayout>
     </ScrollView>

@@ -16,9 +16,7 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-
-        // AWS 배포 시 이 값만 변경 (예: "http://1.2.3.4:8080")
-        buildConfigField "String", "API_BASE_URL", '"http://10.0.2.2:8080"'
+        buildConfigField "String", "API_BASE_URL", '"http://3.36.62.169:8080"'
     }
 
     buildFeatures {

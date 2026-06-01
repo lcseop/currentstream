@@ -91,9 +91,11 @@
                 android:layout_marginEnd="8dp"
                 android:text="취소"
                 android:textAllCaps="false"
+                android:textColor="#333333"
+                app:backgroundTint="@null"
+                android:background="@drawable/bg_dialog_btn_cancel"
                 app:cornerRadius="12dp"
-                app:backgroundTint="#EEEEEE"
-                android:textColor="#333333" />
+                app:rippleColor="@color/dialog_btn_ripple" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/dialog_teams_edit_save"
@@ -102,11 +104,11 @@
                 android:layout_weight="1"
                 android:text="저장"
                 android:textAllCaps="false"
+                android:textColor="#1A1A1A"
+                app:backgroundTint="@null"
+                android:background="@drawable/bg_dialog_btn_primary"
                 app:cornerRadius="12dp"
-                app:backgroundTint="#E8E6FF"
-                app:strokeColor="#5038C5"
-                app:strokeWidth="1dp"
-                android:textColor="#000000" />
+                app:rippleColor="@color/dialog_btn_ripple" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

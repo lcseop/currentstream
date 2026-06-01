@@ -6,21 +6,23 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.ArrayAdapter;
+import android.view.ViewGroup;
 import android.widget.EditText;
-import android.widget.Spinner;
+import android.widget.PopupWindow;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
 
 import java.io.IOException;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
@@ -66,7 +68,10 @@ public final class AddGoalDialog {
             dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         }
 
-        Spinner memberSpinner = dialog.findViewById(R.id.dialog_teams_add_member_spinner);
+        View memberSelector = dialog.findViewById(R.id.dialog_teams_add_member_selector);
+        TextView memberNameTv = dialog.findViewById(R.id.dialog_teams_add_member_name);
+        TextView memberTagTv = dialog.findViewById(R.id.dialog_teams_add_member_tag);
+        TextView memberArrowTv = dialog.findViewById(R.id.dialog_teams_add_member_arrow);
         TextView targetTv = dialog.findViewById(R.id.dialog_teams_add_target);
         EditText textEdit = dialog.findViewById(R.id.dialog_teams_add_text);
         EditText remarkEdit = dialog.findViewById(R.id.dialog_teams_add_remark);
@@ -75,30 +80,99 @@ public final class AddGoalDialog {
         MaterialButton cancelBtn = dialog.findViewById(R.id.dialog_teams_add_cancel);
         MaterialButton submitBtn = dialog.findViewById(R.id.dialog_teams_add_submit);
 
+        DialogUiHelper.styleDialogCancelButton(cancelBtn);
+        DialogUiHelper.styleDialogPrimaryButton(submitBtn);
+
         targetTv.setVisibility(View.GONE);
 
-        List<String> labels = new ArrayList<>();
-        for (TeamMemberItem member : eligible) {
-            String label = member.leader
-                    ? member.name + " (팀장) - " + member.tag
-                    : member.name + " - " + member.tag;
-            labels.add(label);
-        }
-        memberSpinner.setAdapter(new ArrayAdapter<>(
-                activity,
-                android.R.layout.simple_spinner_dropdown_item,
-                labels
-        ));
-
+        int initialIndex = 0;
         if (preselected != null) {
             for (int i = 0; i < eligible.size(); i++) {
                 if (eligible.get(i).userId == preselected.userId) {
-                    memberSpinner.setSelection(i);
+                    initialIndex = i;
                     break;
                 }
             }
-            memberSpinner.setEnabled(false);
         }
+
+        final boolean memberLocked = preselected != null;
+        final GoalMemberPickerAdapter[] memberAdapterHolder = new GoalMemberPickerAdapter[1];
+        final PopupWindow[] memberPopupHolder = new PopupWindow[1];
+
+        Runnable updateMemberSelector = () -> {
+            TeamMemberItem selected = memberAdapterHolder[0].getSelectedMember();
+            memberNameTv.setText(selected.leader ? selected.name + " (팀장)" : selected.name);
+            DialogUiHelper.applyTagBadge(memberTagTv, selected.tag);
+        };
+
+        Runnable dismissMemberPopup = () -> {
+            if (memberPopupHolder[0] != null && memberPopupHolder[0].isShowing()) {
+                memberPopupHolder[0].dismiss();
+            }
+            memberArrowTv.setText("▽");
+        };
+
+        memberAdapterHolder[0] = new GoalMemberPickerAdapter(eligible, position -> {
+            updateMemberSelector.run();
+            dismissMemberPopup.run();
+        });
+        memberAdapterHolder[0].setSelectedPosition(initialIndex);
+        final GoalMemberPickerAdapter memberAdapter = memberAdapterHolder[0];
+
+        updateMemberSelector.run();
+
+        if (memberLocked) {
+            memberSelector.setClickable(false);
+            memberSelector.setFocusable(false);
+            memberSelector.setForeground(null);
+            memberArrowTv.setVisibility(View.GONE);
+        } else {
+            memberSelector.setOnClickListener(v -> {
+                if (memberPopupHolder[0] != null && memberPopupHolder[0].isShowing()) {
+                    dismissMemberPopup.run();
+                    return;
+                }
+
+                View popupContent = LayoutInflater.from(activity)
+                        .inflate(R.layout.popup_goal_member_picker, null, false);
+                RecyclerView popupList = popupContent.findViewById(R.id.popup_member_list);
+                popupList.setLayoutManager(new LinearLayoutManager(activity));
+                popupList.setAdapter(memberAdapter);
+                popupList.setNestedScrollingEnabled(true);
+
+                int maxPopupHeight = (int) (220 * activity.getResources().getDisplayMetrics().density);
+                PopupWindow popup = new PopupWindow(
+                        popupContent,
+                        memberSelector.getWidth(),
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        true
+                );
+                popup.setOutsideTouchable(true);
+                popup.setFocusable(true);
+                popup.setElevation(12f);
+                popup.setOnDismissListener(() -> memberArrowTv.setText("▽"));
+
+                memberPopupHolder[0] = popup;
+                memberArrowTv.setText("△");
+                popup.showAsDropDown(memberSelector, 0, (int) (4 * activity.getResources().getDisplayMetrics().density));
+
+                popupList.post(() -> {
+                    int itemCount = memberAdapter.getItemCount();
+                    if (itemCount <= 0) return;
+                    View child = popupList.getChildAt(0);
+                    int rowHeight = child != null
+                            ? child.getHeight()
+                            : (int) (56 * activity.getResources().getDisplayMetrics().density);
+                    int desired = Math.min(rowHeight * itemCount, maxPopupHeight);
+                    ViewGroup.LayoutParams lp = popupList.getLayoutParams();
+                    lp.height = desired;
+                    popupList.setLayoutParams(lp);
+                    popup.update(memberSelector.getWidth(), desired);
+                });
+            });
+        }
+
+        dialog.setOnDismissListener(d -> dismissMemberPopup.run());
 
         final boolean[] check = {false, true, false};
 
@@ -120,7 +194,7 @@ public final class AddGoalDialog {
         cancelBtn.setOnClickListener(v -> dialog.dismiss());
         submitBtn.setOnClickListener(v -> {
             if (!check[0] || !check[1] || !check[2]) return;
-            TeamMemberItem selectedMember = eligible.get(memberSpinner.getSelectedItemPosition());
+            TeamMemberItem selectedMember = memberAdapter.getSelectedMember();
             createGoal(activity, teamId, selectedMember,
                     textEdit.getText().toString().trim(),
                     remarkEdit.getText().toString().trim(),

@@ -86,10 +86,10 @@
             android:layout_marginTop="8dp"
             android:text="확인"
             android:textAllCaps="false"
+            android:textColor="#1A1A1A"
+            app:backgroundTint="@null"
+            android:background="@drawable/bg_dialog_btn_primary"
             app:cornerRadius="12dp"
-            app:backgroundTint="#E8E6FF"
-            app:strokeColor="#5038C5"
-            app:strokeWidth="1dp"
-            android:textColor="#000000" />
+            app:rippleColor="@color/dialog_btn_ripple" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

@@ -40,6 +40,7 @@ public class CommonDialog extends Dialog {
 
         tvMessage.setText(message);
         btnConfirm.setText(buttonText);
+        DialogUiHelper.styleDialogPrimaryButton(btnConfirm);
     }
 
     // 확인 버튼 클릭 리스너 설정
