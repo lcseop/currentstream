@@ -9,6 +9,8 @@ import java.util.List;
 public interface GoalRepository extends JpaRepository<GoalEntity, Long> {
     void deleteByTeamId(Long teamId);
 
+    void deleteByTeamIdAndUserId(Long teamId, Long userId);
+
     List<GoalEntity> findByTeamId(Long teamId);
 
     List<GoalEntity> findByTeamIdAndUserId(Long teamId, Long userId);

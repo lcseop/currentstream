@@ -471,7 +471,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // 세션 만료 등으로 로그인 화면으로 보냄
+    // 로그인 화면으로 이동 (세션·Firebase 정리)
     private void moveToLogin() {
+        FirebaseAuth.getInstance().signOut();
+        SessionManager.getInstance().clear();
         startActivity(new Intent(this, LoginActivity.class));
         finish();
     }
@@ -852,6 +855,7 @@ public class MainActivity extends AppCompatActivity {
 
                         JSONObject root = new JSONObject(resBody);
                         if (!ApiHelper.isSuccess(root)) {
+                            cancelRefresh();
                             showErrorDialog(ApiHelper.getMessage(root, "팀 목록을 불러오지 못했습니다."));
                             if (teamList.isEmpty()) {
                                 showEmptyTeamState();
@@ -1334,13 +1338,26 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onResponse(Call call, Response response) {
+            public void onResponse(Call call, Response response) throws IOException {
+                String body = response.body() != null ? response.body().string() : "";
                 runOnUiThread(() -> {
-                    if (response.isSuccessful() && onSuccess != null) {
-                        onSuccess.run();
+                    if (isFinishing() || isDestroyed()) {
                         return;
                     }
-                    showErrorDialog(accept ? "초대 수락에 실패했습니다." : "초대 거절에 실패했습니다.");
+                    try {
+                        if (response.isSuccessful()) {
+                            JSONObject root = new JSONObject(body);
+                            if (ApiHelper.isSuccess(root)) {
+                                if (onSuccess != null) {
+                                    onSuccess.run();
+                                }
+                                return;
+                            }
+                        }
+                        showErrorDialog(accept ? "초대 수락에 실패했습니다." : "초대 거절에 실패했습니다.");
+                    } catch (Exception e) {
+                        showErrorDialog(accept ? "초대 수락에 실패했습니다." : "초대 거절에 실패했습니다.");
+                    }
                 });
             }
         });

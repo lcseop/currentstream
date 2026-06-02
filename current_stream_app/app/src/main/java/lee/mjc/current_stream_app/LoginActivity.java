@@ -111,7 +111,10 @@ public class LoginActivity extends AppCompatActivity {
                             // Firebase에 로그인
                             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
 
-                            if (user == null) return;
+                            if (user == null) {
+                                runOnUiThread(() -> loadingOverlay.setVisibility(View.GONE));
+                                return;
+                            }
 
                             // 현재 접속한 유저의 Firebase 토큰을 가져옴
                             user.getIdToken(true).addOnCompleteListener(tokenTask -> {
@@ -125,6 +128,7 @@ public class LoginActivity extends AppCompatActivity {
                                     sendTokenToServer(idToken);
                                 } else {
                                     Log.e("LOGIN", "토큰 발급 실패");
+                                    runOnUiThread(() -> loadingOverlay.setVisibility(View.GONE));
                                 }
                                 
                             });
@@ -195,13 +199,10 @@ public class LoginActivity extends AppCompatActivity {
             // 실패 시
             @Override
             public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> {
-                    // 로딩 창 숨기고 대화 상자 출력
+                ApiHelper.runOnUiThreadSafe(LoginActivity.this, () -> {
                     loadingOverlay.setVisibility(View.GONE);
                     CommonDialog dig = new CommonDialog(LoginActivity.this, "서버와 응답이 되지 않습니다.", "확인");
-                    dig.setOnConfirmListener(view -> {
-                        dig.dismiss();
-                    });
+                    dig.setOnConfirmListener(view -> dig.dismiss());
                     dig.show();
                 });
             }
@@ -220,17 +221,17 @@ public class LoginActivity extends AppCompatActivity {
                 Log.d("response", "code: " + code);
                 Log.d("response", responseBody);
 
-                runOnUiThread(() -> {
-                    // 로딩 창 숨기기
+                ApiHelper.runOnUiThreadSafe(LoginActivity.this, () -> {
                     loadingOverlay.setVisibility(View.GONE);
                     String errorMessage = "";
 
-                    // 응답 코드에 따라 알맞은 String 변수에 오류 메시지 할당
-                    if (code >= 200 && code < 300) {
-                        saveUserInfoFromLogin(responseBody);
+                    if (code >= 200 && code < 300 && SessionHelper.applyLoginResponse(responseBody)) {
                         moveToMain();
+                        return;
                     }
-                    else if (code == 401) {
+                    if (code >= 200 && code < 300) {
+                        errorMessage = "로그인 정보를 확인할 수 없습니다.";
+                    } else if (code == 401) {
                         errorMessage = "로그인 인증이 만료되었습니다.";
                         FirebaseAuth.getInstance().signOut();
                     }
@@ -245,12 +246,9 @@ public class LoginActivity extends AppCompatActivity {
                         errorMessage = "로그인 실패";
                     }
 
-                    // 에러 메시지가 비워져 있지 않다면 확인용 대화 상자 출력
                     if (!errorMessage.isEmpty()) {
                         CommonDialog dig = new CommonDialog(LoginActivity.this, errorMessage, "확인");
-                        dig.setOnConfirmListener(view -> {
-                            dig.dismiss();
-                        });
+                        dig.setOnConfirmListener(view -> dig.dismiss());
                         dig.show();
                     }
                 });
@@ -267,24 +265,7 @@ public class LoginActivity extends AppCompatActivity {
 
     // 로그인 응답에서 uid, tag, userId를 SessionManager에 저장
     private void saveUserInfoFromLogin(String responseBody) {
-        try {
-            // JSONObject 클래스를 통해 JSON을 임시로 저장함
-            JSONObject root = new JSONObject(responseBody);
-            JSONObject data = root.optJSONObject("responseData");
-            if (data == null) return;
-
-            // SessionManager의 인스턴스를 받아오고, Setter를 통해 uid, tag를 저장함
-            // 그냥 uid는 Firebase의 uid이고, userId는 DB의 user 테이블 id 속성임 (순번)
-            SessionManager sm = SessionManager.getInstance();
-            sm.setUid(data.optString("uid", ""));
-            sm.setTag(data.optString("tag", ""));
-            sm.setUserName(data.optString("name", ""));
-            if (data.has("id") && !data.isNull("id")) {
-                sm.setUserId(data.getLong("id"));
-            }
-        } catch (Exception ignored) {
-            Log.e("JSON", "json 저장 에러: " + ignored.toString());
-        }
+        SessionHelper.applyLoginResponse(responseBody);
     }
 
     // 구글 로그인 결과를 처리하고 Firebase 인증으로 넘김
@@ -299,6 +280,7 @@ public class LoginActivity extends AppCompatActivity {
             firebaseAuthWithGoogle(account.getIdToken());
         } catch (ApiException e) {
             Log.e("GOOGLE", "로그인 실패", e);
+            runOnUiThread(() -> loadingOverlay.setVisibility(View.GONE));
         }
     }
 
@@ -316,7 +298,10 @@ public class LoginActivity extends AppCompatActivity {
                     if (task.isSuccessful()) {
                         // 현재 로그인된 Firebase 사용자 객체 가져오기
                         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-                        if (user == null) return;
+                        if (user == null) {
+                            runOnUiThread(() -> loadingOverlay.setVisibility(View.GONE));
+                            return;
+                        }
                         user.getIdToken(true)
                                 .addOnSuccessListener(result -> {
                                     // 실제 Firebase JWT 토큰 문자열 추출
@@ -327,7 +312,10 @@ public class LoginActivity extends AppCompatActivity {
 
                                     // Spring 서버로 Firebase 토큰 전송
                                     sendTokenToServer(firebaseToken);
-                                });
+                                })
+                                .addOnFailureListener(e -> runOnUiThread(() ->
+                                        loadingOverlay.setVisibility(View.GONE)
+                                ));
                     } else {
                         runOnUiThread(() -> {
                             // 구글 로그인 실패 시 로딩 창 숨기고 대화상자 출력

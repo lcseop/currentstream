@@ -10,6 +10,8 @@ import androidx.annotation.NonNull;
 
 import com.google.android.material.button.MaterialButton;
 
+import org.json.JSONObject;
+
 import java.io.IOException;
 
 import okhttp3.Call;
@@ -92,20 +94,28 @@ public final class GoalDetailDialog {
         ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                activity.runOnUiThread(() ->
+                ApiHelper.runOnUiThreadSafe(activity, () ->
                         CommonDialog.showError(activity, "상태 변경에 실패했습니다.")
                 );
             }
 
             @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) {
-                activity.runOnUiThread(() -> {
-                    if (response.isSuccessful()) {
-                        dialog.dismiss();
-                        if (listener != null) {
-                            listener.onStatusUpdated();
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                String body = response.body() != null ? response.body().string() : "";
+                ApiHelper.runOnUiThreadSafe(activity, () -> {
+                    try {
+                        if (response.isSuccessful()) {
+                            JSONObject root = new JSONObject(body);
+                            if (ApiHelper.isSuccess(root)) {
+                                dialog.dismiss();
+                                if (listener != null) {
+                                    listener.onStatusUpdated();
+                                }
+                                return;
+                            }
                         }
-                    } else {
+                        CommonDialog.showError(activity, "상태 변경에 실패했습니다.");
+                    } catch (Exception e) {
                         CommonDialog.showError(activity, "상태 변경에 실패했습니다.");
                     }
                 });

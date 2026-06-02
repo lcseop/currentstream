@@ -20,10 +20,11 @@ public class TeamLogsRestController {
      */
     @GetMapping("/{teamId}")
     public ResponseEntity<ApiResponse<List<TeamLogsDto>>> getLogs(
+            @RequestHeader("uid") String uid,
             @PathVariable Long teamId
     ) {
 
-        List<TeamLogsDto> result = teamLogsService.getTeamLogs(teamId);
+        List<TeamLogsDto> result = teamLogsService.getTeamLogs(uid, teamId);
 
         return ResponseEntity.ok(
                 ApiResponse.make(

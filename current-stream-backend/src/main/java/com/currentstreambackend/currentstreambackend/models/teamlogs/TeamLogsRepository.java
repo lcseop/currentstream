@@ -10,4 +10,5 @@ public interface TeamLogsRepository extends JpaRepository<TeamLogsEntity, Long> 
 
     List<TeamLogsEntity> findTop10ByTeamIdOrderByCreatedAtDesc(Long teamId);
 
+    void deleteByTeamId(Long teamId);
 }

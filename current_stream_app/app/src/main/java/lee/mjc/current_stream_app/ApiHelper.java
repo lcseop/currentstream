@@ -1,5 +1,7 @@
 package lee.mjc.current_stream_app;
 
+import android.app.Activity;
+
 import org.json.JSONObject;
 
 import okhttp3.MediaType;
@@ -41,5 +43,21 @@ public final class ApiHelper {
         return new Request.Builder()
                 .url(url)
                 .addHeader("uid", uid != null ? uid : "");
+    }
+
+    // Activity가 종료 중이면 UI 콜백을 실행하지 않음 (WindowLeaked 방지)
+    public static boolean isActivityAlive(Activity activity) {
+        return activity != null && !activity.isFinishing() && !activity.isDestroyed();
+    }
+
+    public static void runOnUiThreadSafe(Activity activity, Runnable action) {
+        if (!isActivityAlive(activity) || action == null) {
+            return;
+        }
+        activity.runOnUiThread(() -> {
+            if (isActivityAlive(activity)) {
+                action.run();
+            }
+        });
     }
 }

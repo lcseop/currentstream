@@ -8,8 +8,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
-import org.json.JSONObject;
-
 import java.io.IOException;
 
 import okhttp3.Call;
@@ -66,8 +64,7 @@ public class SplashActivity extends AppCompatActivity {
             public void onResponse(Call call, Response response) throws IOException {
                 String responseBody = response.body() != null ? response.body().string() : "";
                 runOnUiThread(() -> {
-                    if (response.isSuccessful()) {
-                        saveUserInfoFromLogin(responseBody);
+                    if (response.isSuccessful() && SessionHelper.applyLoginResponse(responseBody)) {
                         moveToMain();
                     } else {
                         moveToLogin();
@@ -75,23 +72,6 @@ public class SplashActivity extends AppCompatActivity {
                 });
             }
         });
-    }
-
-    // 로그인 응답에서 uid, tag, userId를 SessionManager에 저장
-    private void saveUserInfoFromLogin(String responseBody) {
-        try {
-            JSONObject root = new JSONObject(responseBody);
-            JSONObject data = root.optJSONObject("responseData");
-            if (data == null) return;
-
-            SessionManager sm = SessionManager.getInstance();
-            sm.setUid(data.optString("uid", ""));
-            sm.setTag(data.optString("tag", ""));
-            if (data.has("id") && !data.isNull("id")) {
-                sm.setUserId(data.getLong("id"));
-            }
-        } catch (Exception ignored) {
-        }
     }
 
     // 로그인 성공 시 MainActivity로 이동
@@ -102,6 +82,8 @@ public class SplashActivity extends AppCompatActivity {
 
     // 로그인 실패·미로그인 시 LoginActivity로 이동
     private void moveToLogin() {
+        FirebaseAuth.getInstance().signOut();
+        SessionManager.getInstance().clear();
         startActivity(new Intent(this, LoginActivity.class));
         finish();
     }

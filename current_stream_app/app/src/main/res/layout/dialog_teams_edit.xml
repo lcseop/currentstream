@@ -41,7 +41,7 @@
             android:background="@drawable/edit_text_bg_1"
             android:paddingHorizontal="10dp"
             android:inputType="text"
-            android:maxLength="100" />
+            android:maxLength="20" />
 
         <TextView
             android:id="@+id/dialog_teams_edit_name_warn"

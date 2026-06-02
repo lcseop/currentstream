@@ -8,6 +8,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
+import android.util.TypedValue;
 import android.text.TextWatcher;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -20,6 +21,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.widget.TextViewCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -54,6 +56,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
 
     private ImageButton backBtn;
     private ImageButton editBtn;
+    private View titleHost;
     private TextView titleTv;
     private TextView deadlineTv;
     private TextView percentTv;
@@ -84,8 +87,11 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         isLeader = myUserId != null && myUserId == leaderId;
         bottomBtn.setText(isLeader ? "팀 삭제" : "팀 나가기");
         if (editBtn != null) {
-            editBtn.setVisibility(isLeader ? View.VISIBLE : View.GONE);
+            editBtn.setVisibility(isLeader ? View.VISIBLE : View.INVISIBLE);
+            editBtn.setEnabled(isLeader);
+            editBtn.setClickable(isLeader);
         }
+        updateTitleMaxWidth();
     }
 
     // 바텀시트로 다른 팀 고르기
@@ -126,6 +132,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
 
         backBtn = findViewById(R.id.teams_header_back);
         editBtn = findViewById(R.id.teams_header_edit);
+        titleHost = findViewById(R.id.teams_header_title_host);
         titleTv = findViewById(R.id.teams_header_title);
         deadlineTv = findViewById(R.id.teams_deadline);
         percentTv = findViewById(R.id.teams_total_percent);
@@ -257,6 +264,11 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                     }
                     try {
                         JSONObject root = new JSONObject(body);
+                        if (!ApiHelper.isSuccess(root)) {
+                            stopRefreshing();
+                            showErrorDialog(ApiHelper.getMessage(root, "팀 정보를 불러오지 못했습니다."), null);
+                            return;
+                        }
                         JSONArray arr = root.optJSONArray("responseData");
                         if (arr == null) {
                             stopRefreshing();
@@ -298,10 +310,30 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
     // 헤더(이름, 마감일)랑 멤버 어댑터 갱신
     private void applyTeamHeader() {
         titleTv.setText(teamName);
+        updateTitleMaxWidth();
         deadlineTv.setText(formatKoreanDate(teamEndDate));
         refreshLeaderState();
         memberAdapter = new TeamMemberAdapter(members, isLeader, getMyUserId(), this);
         memberList.setAdapter(memberAdapter);
+    }
+
+    // 팀 이름 pill이 설정 버튼 영역을 침범하지 않도록 가운데 정렬 + 글자 축소
+    private void updateTitleMaxWidth() {
+        if (titleHost == null || titleTv == null) return;
+        titleHost.post(() -> {
+            int hostWidth = titleHost.getWidth();
+            if (hostWidth > 0) {
+                titleTv.setMaxWidth(hostWidth);
+                TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
+                        titleTv,
+                        10,
+                        18,
+                        1,
+                        TypedValue.COMPLEX_UNIT_SP
+                );
+                titleTv.requestLayout();
+            }
+        });
     }
 
     // 멤버·목표 목록 API 호출
@@ -344,6 +376,23 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                     return;
                 }
 
+                try {
+                    JSONObject membersRoot = new JSONObject(body);
+                    if (!ApiHelper.isSuccess(membersRoot)) {
+                        runOnUiThread(() -> {
+                            stopRefreshing();
+                            showErrorDialog(ApiHelper.getMessage(membersRoot, "멤버 목록을 불러오지 못했습니다."), null);
+                        });
+                        return;
+                    }
+                } catch (Exception e) {
+                    runOnUiThread(() -> {
+                        stopRefreshing();
+                        showErrorDialog("멤버 목록 처리에 실패했습니다.", null);
+                    });
+                    return;
+                }
+
                 ApiHelper.CLIENT.newCall(goalsRequest).enqueue(new Callback() {
                     // 목표 목록 요청 실패
                     @Override
@@ -362,6 +411,11 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                             try {
                                 if (!goalsResponse.isSuccessful()) {
                                     showErrorDialog("목표 목록을 불러오지 못했습니다.", null);
+                                    return;
+                                }
+                                JSONObject goalsRoot = new JSONObject(goalsBody);
+                                if (!ApiHelper.isSuccess(goalsRoot)) {
+                                    showErrorDialog(ApiHelper.getMessage(goalsRoot, "목표 목록을 불러오지 못했습니다."), null);
                                     return;
                                 }
                                 List<TeamMemberItem> parsedMembers = parseMembers(body);
@@ -500,8 +554,9 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                 // 팀 이름 길이 검사
                 @Override
                 public void afterTextChanged(Editable s) {
-                    if (s.length() < 2 || s.length() > 100) {
-                        nameWarn.setText("팀 이름은 2~100자로 입력해주세요.");
+                    if (s.length() < TeamUiConstants.TEAM_NAME_MIN
+                            || s.length() > TeamUiConstants.TEAM_NAME_MAX) {
+                        nameWarn.setText(TeamUiConstants.teamNameLengthMessage());
                         nameWarn.setVisibility(View.VISIBLE);
                         check[0] = false;
                     } else {

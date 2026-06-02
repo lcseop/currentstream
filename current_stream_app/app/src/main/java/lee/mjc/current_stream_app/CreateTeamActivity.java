@@ -115,8 +115,9 @@ public class CreateTeamActivity extends AppCompatActivity {
                     nameWarn.setText("팀 이름을 입력해주세요.");
                     nameWarn.setVisibility(View.VISIBLE);
                     check[0] = false;
-                } else if (s.length() < 2 || s.length() > 100) {
-                    nameWarn.setText("팀 이름은 2~100자로 입력해주세요.");
+                } else if (s.length() < TeamUiConstants.TEAM_NAME_MIN
+                        || s.length() > TeamUiConstants.TEAM_NAME_MAX) {
+                    nameWarn.setText(TeamUiConstants.teamNameLengthMessage());
                     nameWarn.setVisibility(View.VISIBLE);
                     check[0] = false;
                 } else {

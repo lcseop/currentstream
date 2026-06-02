@@ -1,5 +1,6 @@
 package com.currentstreambackend.currentstreambackend.models.teamlogs;
 
+import com.currentstreambackend.currentstreambackend.models.mapping.MappingRepository;
 import com.currentstreambackend.currentstreambackend.models.users.UsersEntity;
 import com.currentstreambackend.currentstreambackend.models.users.UsersRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,9 @@ public class TeamLogsService {
     @Autowired
     private UsersRepository usersRepository;
 
+    @Autowired
+    private MappingRepository mappingRepository;
+
     /**
      * 로그 생성
      */
@@ -36,9 +40,15 @@ public class TeamLogsService {
     }
 
     /**
-     * 팀 최근 로그 조회
+     * 팀 최근 로그 조회 (팀원 전용)
      */
-    public List<TeamLogsDto> getTeamLogs(Long teamId) {
+    public List<TeamLogsDto> getTeamLogs(String uid, Long teamId) {
+        UsersEntity user = usersRepository.findByUid(uid)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!mappingRepository.existsByUserIdAndTeamId(user.getId(), teamId)) {
+            throw new RuntimeException("Not team user");
+        }
 
         return teamLogsRepository
                 .findTop10ByTeamIdOrderByCreatedAtDesc(teamId)

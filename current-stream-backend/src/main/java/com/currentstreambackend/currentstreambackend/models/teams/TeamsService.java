@@ -41,6 +41,9 @@ public class TeamsService {
     @Autowired
     private TeamLogsService teamLogsService;
 
+    @Autowired
+    private TeamLogsRepository teamLogsRepository;
+
     private static final String[] COLORS = {
             "#FF6B6B", "#4ECDC4", "#45B7D1",
             "#96CEB4", "#FFEAA7", "#DDA0DD",
@@ -154,6 +157,14 @@ public class TeamsService {
         // 자신에게 할당된 초대가 맞는 지 예외 처리
         if (!invite.getUserId().equals(user.getId())) {
             throw new RuntimeException("Not your invited");
+        }
+
+        if (invite.getStatus() != 0) {
+            throw new RuntimeException("Invalid invite status");
+        }
+
+        if (mappingRepository.existsByUserIdAndTeamId(user.getId(), invite.getTeamId())) {
+            throw new RuntimeException("Already in team");
         }
 
         // 팀 내 고유 컬러 선택
@@ -287,6 +298,7 @@ public class TeamsService {
 
         // mappingRepository를 이용하여 해당 사용자를 팀에서 제거함
         mappingRepository.deleteByUserIdAndTeamId(user.getId(), teamId);
+        goalRepository.deleteByTeamIdAndUserId(teamId, user.getId());
 
         teamLogsService.createLog(
                 team.getId(),
@@ -315,6 +327,7 @@ public class TeamsService {
         mappingRepository.deleteByTeamId(teamId);
         inviteRepository.deleteByTeamId(teamId);
         goalRepository.deleteByTeamId(teamId);
+        teamLogsRepository.deleteByTeamId(teamId);
 
         // 팀 삭제
         teamsRepository.deleteById(teamId);

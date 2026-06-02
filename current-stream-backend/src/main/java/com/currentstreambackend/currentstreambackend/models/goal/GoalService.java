@@ -96,6 +96,10 @@ public class GoalService {
      * @param status
      */
     public void updateStatus(String uid, Long goalId, Integer status) {
+        if (status == null || status < 0 || status > 2) {
+            throw new RuntimeException("Invalid status");
+        }
+
         // 사용자, 목표, 팀 행을 불러옴
         UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
         GoalEntity goal = goalRepository.findById(goalId).orElseThrow(() -> new RuntimeException("Goal not found"));
@@ -173,6 +177,10 @@ public class GoalService {
      */
     public List<GoalDto> getGoals(String uid, Long teamId) {
         UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!mappingRepository.existsByUserIdAndTeamId(user.getId(), teamId)) {
+            throw new RuntimeException("Not team user");
+        }
 
         return goalRepository.findByTeamIdAndUserId(teamId, user.getId())
                 .stream()
