@@ -21,6 +21,14 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * 팀 도메인 비즈니스 로직을 담당하는 서비스 계층.
+ * <p>
+ * 팀 생성·조회·수정·삭제, 멤버 초대/수락/거절, 탈퇴 등 팀 생명주기 전반을 처리한다.
+ * 사용자-팀 관계는 {@link MappingRepository}, 초대는 {@link InviteRepository}로 관리하며,
+ * 주요 이벤트는 {@link TeamLogsService}를 통해 활동 로그로 기록한다.
+ * </p>
+ */
 @Service
 public class TeamsService {
     @Autowired
@@ -52,11 +60,16 @@ public class TeamsService {
 
 
     /**
-     * 팀 생성 서비스 로직
-     * @param uid
-     * @param name
-     * @param endDate
-     * @return 생성한 팀 행을 불러옴
+     * 새 팀을 생성하고 생성자를 팀장·첫 멤버로 등록한다.
+     * <p>
+     * 비즈니스 규칙: 팀 생성자가 자동으로 leaderId가 되며, mapping 테이블에 기본 색상으로 추가된다.
+     * 팀 생성 이벤트는 활동 로그에 기록된다.
+     * </p>
+     *
+     * @param uid     Firebase UID (요청자 = 팀장)
+     * @param name    팀 이름
+     * @param endDate 팀 종료 예정일
+     * @return 생성된 팀 DTO
      */
     public TeamsDto createTeam(String uid, String name, LocalDate endDate) {
         // 사용자 행을 불러옴
@@ -88,9 +101,13 @@ public class TeamsService {
     }
 
     /**
-     * 팀 조회 서비스 로직
-     * @param uid
-     * @return 내가 속한 팀들을 조회함
+     * 요청자가 소속된 모든 팀 목록을 조회한다.
+     * <p>
+     * 비즈니스 원칙: mapping 테이블을 기준으로 사용자-팀 관계를 역추적한다.
+     * </p>
+     *
+     * @param uid Firebase UID
+     * @return 소속 팀 DTO 목록
      */
     public List<TeamsDto> getMyTeams(String uid) {
         // 사용자 행을 불러옴
@@ -105,17 +122,22 @@ public class TeamsService {
     }
 
     /**
-     * 팀에 유저 초대
-     * @param uid
-     * @param teamId
-     * @param tag
+     * 팀장이 태그로 사용자를 팀에 초대한다.
+     * <p>
+     * 비즈니스 규칙: 팀장만 초대 가능. 이미 팀원이거나 대기 중(status=0) 초대가 있으면 거부한다.
+     * 초대는 status=0(대기)으로 저장되며, 목록 표시용 teamName·inviterName을 함께 보관한다.
+     * </p>
+     *
+     * @param uid    Firebase UID (팀장)
+     * @param teamId 초대할 팀 ID
+     * @param tag    초대 대상 사용자 태그
      */
     public void inviteUser(String uid, Long teamId, String tag) {
         // 사용자와 팀 행을 불러옴
         UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
         TeamsEntity team = teamsRepository.findById(teamId).orElseThrow(() -> new RuntimeException("Team not found"));
 
-        // 초대 대상이 팀장인 경우 런타임 에러 발생
+        // [중요] 팀장 권한 검증 — 팀장만 초대 가능
         if (!team.getLeaderId().equals(user.getId())) {
             throw new RuntimeException("Not Leader");
         }
@@ -123,12 +145,12 @@ public class TeamsService {
         // 태그로 초대 대상을 찾음
         UsersEntity target = usersRepository.findByTag(tag).orElseThrow(() -> new RuntimeException("Target not found"));
 
-        // 이미 팀원인 경우
+        // [중요] 중복 팀원 검증
         if (mappingRepository.existsByUserIdAndTeamId(target.getId(), teamId)) {
             throw new RuntimeException("Already in team");
         }
 
-        // 이미 초대 대기 중인 경우
+        // [중요] 중복 초대 검증 — 대기(status=0) 중인 초대가 있으면 거부
         boolean exists = inviteRepository.existsByTeamIdAndUserIdAndStatus(teamId, target.getId(), 0);
         if (exists) throw new RuntimeException("Already invited");
 
@@ -145,20 +167,26 @@ public class TeamsService {
     }
 
     /**
-     * 팀 초대 수락 로직
-     * @param uid
-     * @param inviteId
+     * 초대를 수락하고 팀 멤버로 등록한다.
+     * <p>
+     * 비즈니스 규칙: 본인에게 온 대기(status=0) 초대만 수락 가능.
+     * 수락 시 mapping에 고유 색상을 부여하고, 초대 상태를 1(수락)로 변경한다.
+     * </p>
+     *
+     * @param uid      Firebase UID (초대 수신자)
+     * @param inviteId 수락할 초대 ID
      */
     public void acceptInvite(String uid, Long inviteId) {
         // 사용자와 초대 행을 불러옴
         UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
         InviteEntity invite = inviteRepository.findById(inviteId).orElseThrow(() -> new RuntimeException("Invite not found"));
 
-        // 자신에게 할당된 초대가 맞는 지 예외 처리
+        // [중요] 초대 수신자 본인 확인
         if (!invite.getUserId().equals(user.getId())) {
             throw new RuntimeException("Not your invited");
         }
 
+        // [중요] 초대 상태 검증 — 대기(status=0)만 수락 가능
         if (invite.getStatus() != 0) {
             throw new RuntimeException("Invalid invite status");
         }
@@ -190,21 +218,25 @@ public class TeamsService {
     }
 
     /**
-     * 팀 초대 거절 로직
-     * @param uid
-     * @param inviteId
+     * 초대를 거절한다.
+     * <p>
+     * 비즈니스 규칙: 본인에게 온 대기(status=0) 초대만 거절 가능하며, 상태를 2(거절)로 변경한다.
+     * </p>
+     *
+     * @param uid      Firebase UID (초대 수신자)
+     * @param inviteId 거절할 초대 ID
      */
     public void rejectInvite(String uid, Long inviteId) {
         // 사용자와 초대 행을 불러옴
         UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
         InviteEntity invite = inviteRepository.findById(inviteId).orElseThrow(() -> new RuntimeException("Invite not found"));
 
-        // 자신에게 할당된 초대가 맞는 지 예외 처리
+        // [중요] 초대 수신자 본인 확인
         if (!invite.getUserId().equals(user.getId())) {
             throw new RuntimeException("Not your invited");
         }
 
-        // 초대 상태 값이 '초대'가 아니고 수락, 거절일 경우 예외 처리
+        // [중요] 초대 상태 검증 — 대기(status=0)만 거절 가능
         if (!(invite.getStatus() == 0)) {
             throw new RuntimeException("Invalid invite status");
         }
@@ -215,9 +247,13 @@ public class TeamsService {
     }
 
     /**
-     * 팀 초대 목록 조회
-     * @param uid
-     * @return 수락/거절 가능한 초대들 불러옴
+     * 요청자에게 온 대기 중인 초대 목록을 조회한다.
+     * <p>
+     * 비즈니스 원칙: status=0(대기)인 초대만 반환한다.
+     * </p>
+     *
+     * @param uid Firebase UID
+     * @return 수락/거절 가능한 초대 DTO 목록
      */
     public List<InviteDto> getMyInvites(String uid) {
         // 사용자 행을 불러옴
@@ -231,12 +267,21 @@ public class TeamsService {
     }
 
     /**
-     * 팀 멤버 목록 조회
+     * 팀 멤버 목록을 조회한다.
+     * <p>
+     * 비즈니스 규칙: 요청자가 해당 팀의 멤버인 경우에만 조회를 허용한다.
+     * 각 멤버의 팀장 여부(leader)와 고유 색상(userColor)을 함께 반환한다.
+     * </p>
+     *
+     * @param uid    Firebase UID
+     * @param teamId 조회 대상 팀 ID
+     * @return 팀 멤버 DTO 목록
      */
     public List<TeamMemberDto> getTeamMembers(String uid, Long teamId) {
         UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
         TeamsEntity team = teamsRepository.findById(teamId).orElseThrow(() -> new RuntimeException("Team not found"));
 
+        // [중요] 팀 멤버십 검증
         if (!mappingRepository.existsByUserIdAndTeamId(user.getId(), teamId)) {
             throw new RuntimeException("Not team user");
         }
@@ -258,12 +303,22 @@ public class TeamsService {
     }
 
     /**
-     * 팀 정보 수정 (팀장 전용)
+     * 팀 정보(이름, 종료일)를 수정한다.
+     * <p>
+     * 비즈니스 규칙: 팀장만 수정 가능하며, 변경 이벤트는 활동 로그에 기록된다.
+     * </p>
+     *
+     * @param uid     Firebase UID (팀장)
+     * @param teamId  수정 대상 팀 ID
+     * @param name    새 팀 이름
+     * @param endDate 새 종료 예정일
+     * @return 수정된 팀 DTO
      */
     public TeamsDto updateTeam(String uid, Long teamId, String name, LocalDate endDate) {
         UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
         TeamsEntity team = teamsRepository.findById(teamId).orElseThrow(() -> new RuntimeException("Team not found"));
 
+        // [중요] 팀장 권한 검증
         if (!team.getLeaderId().equals(user.getId())) {
             throw new RuntimeException("Not leader");
         }
@@ -281,9 +336,14 @@ public class TeamsService {
     }
 
     /**
-     * 팀 탈퇴
-     * @param uid
-     * @param teamId
+     * 팀에서 탈퇴한다.
+     * <p>
+     * 비즈니스 규칙: 팀장은 탈퇴할 수 없다(팀 삭제를 사용해야 함).
+     * 탈퇴 시 mapping과 해당 팀의 개인 목표가 함께 삭제된다.
+     * </p>
+     *
+     * @param uid    Firebase UID
+     * @param teamId 탈퇴할 팀 ID
      */
     @Transactional
     public void leaveTeam(String uid, Long teamId) {
@@ -291,12 +351,12 @@ public class TeamsService {
         UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
         TeamsEntity team = teamsRepository.findById(teamId).orElseThrow(() -> new RuntimeException("Team not found"));
 
-        // 리더는 탈퇴 못하게 예외 처리
+        // [중요] 팀장 탈퇴 차단 — 팀장은 leave 불가, deleteTeam 사용
         if (team.getLeaderId().equals(user.getId())) {
             throw new RuntimeException("Leader cannot leave");
         }
 
-        // mappingRepository를 이용하여 해당 사용자를 팀에서 제거함
+        // [중요] 트랜잭션 내 멤버십·목표 일괄 삭제
         mappingRepository.deleteByUserIdAndTeamId(user.getId(), teamId);
         goalRepository.deleteByTeamIdAndUserId(teamId, user.getId());
 
@@ -308,9 +368,14 @@ public class TeamsService {
     }
 
     /**
-     * 팀 삭제 (팀장 전용)
-     * @param uid
-     * @param teamId
+     * 팀과 연관 데이터를 모두 삭제한다.
+     * <p>
+     * 비즈니스 규칙: 팀장만 삭제 가능.
+     * mapping, invite, goal, teamLog를 먼저 삭제한 뒤 팀 엔티티를 제거한다.
+     * </p>
+     *
+     * @param uid    Firebase UID (팀장)
+     * @param teamId 삭제할 팀 ID
      */
     @Transactional
     public void deleteTeam(String uid, Long teamId) {
@@ -318,12 +383,12 @@ public class TeamsService {
         UsersEntity user = usersRepository.findByUid(uid).orElseThrow(() -> new RuntimeException("User not found"));
         TeamsEntity team = teamsRepository.findById(teamId).orElseThrow(() -> new RuntimeException("Team not found"));
 
-        // 팀장만 삭제 가능하게 예외 처리
+        // [중요] 팀장 권한 검증
         if (!team.getLeaderId().equals(user.getId())) {
             throw new RuntimeException("Not leader");
         }
 
-        // 연관된 데이터들을 삭제함
+        // [중요] 트랜잭션 내 연관 데이터 일괄 삭제 (참조 무결성)
         mappingRepository.deleteByTeamId(teamId);
         inviteRepository.deleteByTeamId(teamId);
         goalRepository.deleteByTeamId(teamId);
@@ -335,9 +400,14 @@ public class TeamsService {
     }
 
     /**
-     * private 팀 내에서 색상 결정
-     * @param teamId
-     * @return 팀 내의 유저 고유 색상을 랜덤 설정하고 불러온 컬러 코드
+     * 팀 내에서 멤버에게 부여할 고유 색상을 결정한다.
+     * <p>
+     * 비즈니스 원칙: 사전 정의 팔레트(COLORS)에서 미사용 색을 우선 선택하고,
+     * 모두 사용 중이면 밝은 랜덤 RGB 색상을 생성한다.
+     * </p>
+     *
+     * @param teamId 색상을 할당할 팀 ID
+     * @return HEX 색상 코드
      */
     private String generateUniqueColor(Long teamId) {
         List<MappingEntity> mappings = mappingRepository.findByTeamId(teamId);

@@ -1,15 +1,24 @@
 package lee.mjc.current_stream_app;
 
-// 팀 멤버별 목표 항목 모델
+/**
+ * 팀원별 목표 항목 모델임.
+ * TeamMemberItem의 ongoingGoals·completedGoals에 들어감.
+ */
 public class TeamGoalItem {
-    public long id;              // 목표 ID
-    public long userId;          // 담당 멤버 user ID
-    public String goalText;      // 목표 내용
-    public String remark;        // 비고
-    public int status;           // 0: 진행 중, 1: 완료
-    public String goalEndDate;   // 목표 마감일
+    /** 목표 ID */
+    public long id;
+    /** 담당 팀원 user ID */
+    public long userId;
+    /** 목표 내용 */
+    public String goalText;
+    /** 비고·메모 */
+    public String remark;
+    /** 상태 (0: 진행 중, 1: 완료) */
+    public int status;
+    /** 목표 마감일 (yyyy-MM-dd) */
+    public String goalEndDate;
 
-    // 팀 멤버 목표 항목 생성
+    /** 팀원 목표 항목 생성함 */
     public TeamGoalItem(long id, long userId, String goalText, String remark, int status, String goalEndDate) {
         this.id = id;
         this.userId = userId;

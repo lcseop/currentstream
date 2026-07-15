@@ -10,9 +10,13 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
 
-// 목표 추가 다이얼로그 멤버 선택 목록
+/**
+ * 목표 추가 대화상자에서 목표 줄 팀원 고르는 단일 선택 리스트 어댑터임
+ * 고른 userId가 AddGoalDialog createGoal의 targetUserId로 넘어감
+ */
 public class GoalMemberPickerAdapter extends RecyclerView.Adapter<GoalMemberPickerAdapter.VH> {
 
+    /** 행 눌렀을 때 선택 바뀐 인덱스를 대화상자에 알려줌 */
     public interface OnMemberSelectedListener {
         void onMemberSelected(int position);
     }
@@ -21,11 +25,17 @@ public class GoalMemberPickerAdapter extends RecyclerView.Adapter<GoalMemberPick
     private final OnMemberSelectedListener listener;
     private int selectedPosition = 0;
 
+    /**
+     * 목표 줄 수 있는 팀원 목록이랑 선택 콜백 받아서 만듦
+     */
     public GoalMemberPickerAdapter(List<TeamMemberItem> members, OnMemberSelectedListener listener) {
         this.members = members;
         this.listener = listener;
     }
 
+    /**
+     * 선택 행 바꿀 때 이전·새 행만 notifyItemChanged 해서 전체 깜빡임 줄임
+     */
     public void setSelectedPosition(int position) {
         if (position < 0 || position >= members.size()) return;
         int old = selectedPosition;
@@ -34,14 +44,22 @@ public class GoalMemberPickerAdapter extends RecyclerView.Adapter<GoalMemberPick
         notifyItemChanged(selectedPosition);
     }
 
+    /** 현재 선택된 인덱스 반환함 */
     public int getSelectedPosition() {
         return selectedPosition;
     }
 
+    /**
+     * 지금 고른 팀원 반환함
+     * AddGoalDialog에서 POST /api/goal body의 targetUserId 정할 때 씀 (본인이면 필드 안 넣음)
+     */
     public TeamMemberItem getSelectedMember() {
         return members.get(selectedPosition);
     }
 
+    /**
+     * 팀원 한 줄 레이아웃 inflate해서 ViewHolder 만듦
+     */
     @NonNull
     @Override
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -50,6 +68,9 @@ public class GoalMemberPickerAdapter extends RecyclerView.Adapter<GoalMemberPick
         return new VH(v);
     }
 
+    /**
+     * 이름·tag·선택 뱃지 바인딩하고 행 클릭하면 선택 바꿈
+     */
     @Override
     public void onBindViewHolder(@NonNull VH holder, int position) {
         TeamMemberItem member = members.get(position);
@@ -75,12 +96,18 @@ public class GoalMemberPickerAdapter extends RecyclerView.Adapter<GoalMemberPick
         return members.size();
     }
 
+    /**
+     * 팀원 선택 한 줄 뷰 들고 있는 ViewHolder임
+     */
     static class VH extends RecyclerView.ViewHolder {
         final View row;
         final TextView nameTv;
         final TextView tagTv;
         final TextView selectedBadge;
 
+        /**
+         * 레이아웃에서 행·이름·tag·선택 뱃지 findViewById로 연결함
+         */
         VH(@NonNull View itemView) {
             super(itemView);
             row = itemView.findViewById(R.id.goal_member_row);

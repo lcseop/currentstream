@@ -11,12 +11,17 @@ import androidx.annotation.NonNull;
 
 import com.google.android.material.button.MaterialButton;
 
-// 확인 버튼 하나만 있는 알림 다이얼로그
+/**
+ * 확인 버튼 하나만 있는 알림 대화상자임
+ * API 에러나 단순 안내 띄울 때 씀
+ */
 public class CommonDialog extends Dialog {
 
     private final MaterialButton btnConfirm;
 
-    // 메시지와 버튼 텍스트로 다이얼로그 생성
+    /**
+     * 메시지랑 버튼 글자 넣어서 대화상자 만듦
+     */
     public CommonDialog(
             @NonNull Context context,
             String message,
@@ -26,9 +31,11 @@ public class CommonDialog extends Dialog {
 
         setContentView(R.layout.dialog_normal);
 
+        // 뒤로가기·바깥 터치로 안 닫히게 막음 (실수로 닫는 거 방지)
         setCancelable(false);
         setCanceledOnTouchOutside(false);
 
+        // 창 배경 투명 처리해서 레이아웃 둥근 모서리 보이게 함
         if (getWindow() != null) {
             getWindow().setBackgroundDrawable(
                     new ColorDrawable(Color.TRANSPARENT)
@@ -43,12 +50,17 @@ public class CommonDialog extends Dialog {
         DialogUiHelper.styleDialogPrimaryButton(btnConfirm);
     }
 
-    // 확인 버튼 클릭 리스너 설정
+    /**
+     * 확인 눌렀을 때 할 일 연결함
+     */
     public void setOnConfirmListener(View.OnClickListener listener) {
         btnConfirm.setOnClickListener(listener);
     }
 
-    // 확인 버튼만 있는 오류/안내 다이얼로그 바로 띄우기
+    /**
+     * 에러 메시지 한 줄 띄우고 확인 누르면 닫히게 함
+     * API 실패 처리할 때 여기로 모아둠
+     */
     public static void showError(Context context, String message) {
         CommonDialog dialog = new CommonDialog(context, message, "확인");
         dialog.setOnConfirmListener(v -> dialog.dismiss());

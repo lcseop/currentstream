@@ -14,11 +14,16 @@ import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 
-// 날짜·시간 표시 유틸 (팀 로그 상대 시간, 목표 D-day 등)
+/**
+ * 서버·UI에서 쓰는 날짜·시간 표시 유틸임.
+ * 팀 로그 상대 시간, 목표 D-day 등을 서버 타임존 기준으로 맞춤.
+ */
 public final class DateTimeUtil {
 
+    /** 서버·DB 기준 타임존 */
     private static final ZoneId SERVER_ZONE = ZoneId.of("Asia/Seoul");
 
+    /** ISO 비슷한 날짜 문자열 파싱용 포맷터 */
     private static final DateTimeFormatter FLEXIBLE_LOCAL = new DateTimeFormatterBuilder()
             .append(DateTimeFormatter.ISO_LOCAL_DATE)
             .appendLiteral('T')
@@ -34,17 +39,25 @@ public final class DateTimeUtil {
             .optionalEnd()
             .toFormatter();
 
+    /** new 막음 */
     private DateTimeUtil() {
     }
 
-    // 서버 createdAt(JSON 배열·문자열·숫자)을 epoch ms로 변환
+    /**
+     * 백엔드 createdAt 필드를 밀리초로 바꿈.
+     * 배열·숫자·문자열 형태 다 섞여 올 수 있어서 분기 처리함
+     */
     public static long parseCreatedAtMillis(Object raw) {
+        // null이면 0
         if (raw == null) return 0L;
+        // API 26 미만은 java.time 못 씀
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return 0L;
 
         try {
+            // [year, month, day, hour, minute, ...] 배열 형태
             if (raw instanceof JSONArray) {
                 JSONArray arr = (JSONArray) raw;
+                // 최소 5개(년월일시분) 없으면 파싱 불가
                 if (arr.length() < 5) return 0L;
                 int year = arr.getInt(0);
                 int month = arr.getInt(1);
@@ -56,9 +69,10 @@ public final class DateTimeUtil {
                 return time.atZone(SERVER_ZONE).toInstant().toEpochMilli();
             }
 
+            // 숫자(epoch) 형태
             if (raw instanceof Number) {
                 long value = ((Number) raw).longValue();
-                // epoch 초 단위로 오는 경우 (ms는 보통 13자리)
+                // [중요] 10자리 미만이면 초 단위라 ms로 곱함. 13자리는 이미 ms
                 if (value > 0L && value < 1_000_000_000_000L) {
                     return value * 1000L;
                 }
@@ -66,25 +80,30 @@ public final class DateTimeUtil {
             }
 
             String text = String.valueOf(raw).trim();
+            // 빈 값·"null" 문자열은 무시
             if (text.isEmpty() || "null".equals(text)) return 0L;
 
+            // UTC Z 끝나는 ISO
             if (text.endsWith("Z")) {
                 return java.time.Instant.parse(text).toEpochMilli();
             }
+            // +09:00 같은 오프셋 포함
             if (text.contains("+") || text.matches(".*-\\d{2}:\\d{2}$")) {
                 return OffsetDateTime.parse(text).toInstant().toEpochMilli();
             }
+            // 공백을 T로 바꿔서 로컬 datetime 파싱
             if (text.contains(" ")) {
                 text = text.replace(" ", "T");
             }
             LocalDateTime time = LocalDateTime.parse(text, FLEXIBLE_LOCAL);
             return time.atZone(SERVER_ZONE).toInstant().toEpochMilli();
         } catch (Exception ignored) {
+            // 형식 안 맞으면 0
             return 0L;
         }
     }
 
-    // 생성 시각 기준 상대 시간 표시 (방금 전, 3분 전, 2월 5일 등)
+    /** 생성 시각(ms)을 "방금 전", "3분 전", "2월 5일" 같은 문자열로 바꿈 */
     public static String formatRelativeTime(long createdAtMillis) {
         if (createdAtMillis <= 0L) return "";
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return "";
@@ -97,6 +116,7 @@ public final class DateTimeUtil {
         long hours = minutes / 60L;
         if (hours < 24) return hours + "시간 전";
         long days = hours / 24L;
+        // 7일 넘으면 월·일만 표시
         if (days < 7) return days + "일 전";
 
         LocalDateTime time = LocalDateTime.ofInstant(
@@ -106,7 +126,7 @@ public final class DateTimeUtil {
         return time.format(DateTimeFormatter.ofPattern("M월 d일", Locale.KOREA));
     }
 
-    // 팀 선택/진행률 카드용 D-day (예: D-15, D+3)
+    /** 목표 endDate 기준 D-day 문자열 만듦. 남으면 D-N, 지났으면 D+N */
     public static String formatDday(String endDate) {
         if (endDate == null || endDate.isEmpty()) return "D-?";
         try {
@@ -117,11 +137,12 @@ public final class DateTimeUtil {
                 return days >= 0 ? ("D-" + days) : ("D+" + Math.abs(days));
             }
         } catch (Exception ignored) {
+            // 파싱 실패면 D-?
         }
         return "D-?";
     }
 
-    // 목표 마감까지 남은 일수 (예: 12일 남음, 3일 초과)
+    /** 마감일까지 "12일 남음", "3일 초과" 같은 문구로 바꿈 */
     public static String formatRemainingDays(String endDate) {
         if (endDate == null || endDate.isEmpty()) return "";
         try {
@@ -132,11 +153,12 @@ public final class DateTimeUtil {
                 return days >= 0 ? (days + "일 남음") : (Math.abs(days) + "일 초과");
             }
         } catch (Exception ignored) {
+            // 파싱 실패면 빈 문자열
         }
         return "";
     }
 
-    // 목표 마감일이 오늘보다 이전이면 true
+    /** 목표 마감일이 오늘보다 이전이면 true. 연체 스타일 쓸 때 봄 */
     public static boolean isGoalOverdue(String endDate) {
         if (endDate == null || endDate.isEmpty()) return false;
         try {
@@ -144,6 +166,7 @@ public final class DateTimeUtil {
                 return LocalDate.parse(endDate).isBefore(LocalDate.now());
             }
         } catch (Exception ignored) {
+            // 파싱 실패면 연체 아님
         }
         return false;
     }

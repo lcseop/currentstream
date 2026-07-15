@@ -13,9 +13,20 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/**
+ * Firebase Admin SDK 초기화 설정.
+ * <p>
+ * 서버에서 Firebase ID 토큰 검증(로그인 API)에 사용합니다.
+ * credentials는 환경변수 {@code FIREBASE_CREDENTIALS_PATH} 또는 classpath json을 읽습니다.
+ * </p>
+ */
 @Configuration
 public class FirebaseConfig {
 
+    /**
+     * 앱 기동 시 FirebaseApp 싱글톤을 등록합니다.
+     * 이미 초기화된 경우 중복 등록을 피합니다.
+     */
     @PostConstruct
     public void init() throws IOException {
         InputStream serviceAccount = openCredentialsStream();

@@ -10,6 +10,13 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 목표 CRUD·상태 변경 HTTP 엔드포인트.
+ * <p>
+ * 생성 시 {@code targetUserId}가 있으면 팀장이 다른 멤버에게 목표를 할당하는 흐름입니다.
+ * 비즈니스 규칙(권한·길이 제한)은 {@link GoalService}에서 처리합니다.
+ * </p>
+ */
 @RestController
 @RequestMapping("/api/goal")
 public class GoalRestController {

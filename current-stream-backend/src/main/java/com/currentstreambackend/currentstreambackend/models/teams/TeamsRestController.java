@@ -11,6 +11,13 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 팀·초대·멤버 관련 HTTP 엔드포인트.
+ * <p>
+ * 원칙: 모든 요청에 {@code uid} 헤더가 필요하며, 실제 권한(팀장/멤버)은 {@link TeamsService}에서 검증합니다.
+ * Controller는 JSON Map을 파싱해 Service에 넘기고 {@link ApiResponse}로 감싸 반환만 담당합니다.
+ * </p>
+ */
 @RestController
 @RequestMapping("/api/team")
 public class TeamsRestController {

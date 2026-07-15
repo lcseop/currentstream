@@ -10,6 +10,13 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+/**
+ * 회원가입·로그인·태그 검색·회원 탈퇴 HTTP 엔드포인트.
+ * <p>
+ * 로그인은 Firebase ID 토큰을 받아 {@link UsersService}에서 Admin SDK로 검증한 뒤
+ * DB 사용자 정보(uid, tag, userId)를 {@link ApiResponse}로 반환합니다.
+ * </p>
+ */
 @RestController
 @RequestMapping("/api/user")
 public class UsersRestController {

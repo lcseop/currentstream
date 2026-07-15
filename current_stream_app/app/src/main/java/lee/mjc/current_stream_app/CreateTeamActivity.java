@@ -35,9 +35,13 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-// 팀 생성 화면 (이름, 마감일, 멤버 초대)
+/**
+ * 새 팀 만들기 화면임
+ * 팀 이름·마감일 검증 후 서버에 팀 생성하고, tag로 팀원 최대 5명까지 순차 초대함
+ */
 public class CreateTeamActivity extends AppCompatActivity {
 
+    /** 초대 가능한 팀원 최대 인원 */
     private static final int MAX_INVITE_COUNT = 5;
 
     private EditText nameEdit;
@@ -51,18 +55,24 @@ public class CreateTeamActivity extends AppCompatActivity {
     private ImageButton backBtn;
     private RecyclerView usersList;
 
+    /** 초대할 팀원 목록 (tag 검증 통과한 멤버만 담김) */
     private final List<InviteMember> inviteMembers = new ArrayList<>();
     private CreateTeamMemberAdapter memberAdapter;
 
-    // 0: 팀 이름, 1: 목표 날짜
+    /** 0: 팀 이름, 1: 목표 날짜 — 둘 다 true일 때만 생성 버튼 활성화됨 */
     boolean[] check = {false, false};
 
-    // 화면 초기화하고 입력·버튼 연결
+    // --- lifecycle ---
+
+    /**
+     * 레이아웃 바인딩하고 입력 검증·날짜 선택·초대 입력·생성 버튼 리스너 연결함
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_team);
 
+        // 뷰 참조
         nameEdit = findViewById(R.id.create_team_name_edit);
         dateEdit = findViewById(R.id.create_team_date_edit);
         View tagInputRoot = findViewById(R.id.create_team_tag_input);
@@ -76,10 +86,12 @@ public class CreateTeamActivity extends AppCompatActivity {
         backBtn = findViewById(R.id.create_team_header_back);
         usersList = findViewById(R.id.create_team_users_list);
 
+        // 초기 UI 상태
         nameWarn.setVisibility(View.INVISIBLE);
         dateWarn.setVisibility(View.INVISIBLE);
         createBtn.setEnabled(false);
 
+        // 초대 팀원 RecyclerView 설정
         usersList.setLayoutManager(new LinearLayoutManager(this));
         memberAdapter = new CreateTeamMemberAdapter(inviteMembers, position -> {
             if (position >= 0 && position < inviteMembers.size()) {
@@ -101,14 +113,14 @@ public class CreateTeamActivity extends AppCompatActivity {
         createBtn.setOnClickListener(v -> createTeam());
     }
 
-    // 팀 이름 입력 검증
+    /**
+     * 팀 이름 입력란에 실시간 길이 검증 리스너 붙임
+     */
     private void setupNameValidation() {
         nameEdit.addTextChangedListener(new TextWatcher() {
-            // TextWatcher 빈 구현
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
-            // 팀 이름 길이 검사
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 if (s.length() < 1) {
@@ -127,18 +139,22 @@ public class CreateTeamActivity extends AppCompatActivity {
                 updateCreateButton();
             }
 
-            // TextWatcher 빈 구현
             @Override
             public void afterTextChanged(Editable s) {}
         });
     }
 
-    // 날짜 입력란 클릭 시 달력 열기
+    /**
+     * 날짜 입력란 클릭 시 DatePickerDialog 열리게 함
+     */
     private void setupDatePicker() {
         dateEdit.setOnClickListener(v -> showDatePicker());
     }
 
-    // 날짜 선택 다이얼로그 (7일 후부터)
+    /**
+     * 마감일 선택 DatePickerDialog 표시함
+     * 최소 7일 후만 선택 가능하도록 제한함
+     */
     private void showDatePicker() {
         LocalDate minDate = LocalDate.now().plusDays(7);
         Calendar calendar = Calendar.getInstance();
@@ -161,7 +177,9 @@ public class CreateTeamActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    // 선택한 날짜가 7일 후인지 검사
+    /**
+     * 선택한 날짜가 7일 후 이상인지 검사하고 check[1] 갱신함
+     */
     private void validateSelectedDate(LocalDate date) {
         if (date.isBefore(LocalDate.now().plusDays(7))) {
             dateWarn.setText("날짜는 7일 후로 설정해주세요.");
@@ -174,7 +192,9 @@ public class CreateTeamActivity extends AppCompatActivity {
         updateCreateButton();
     }
 
-    // 초대 tag 입력 후 엔터 처리
+    /**
+     * 초대 tag 입력란에서 엔터(완료) 키 입력 시 tag 검증 실행함
+     */
     private void setupInviteInput() {
         usersEdit.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE
@@ -188,7 +208,10 @@ public class CreateTeamActivity extends AppCompatActivity {
         });
     }
 
-    // tag 서버 확인 후 초대 목록에 추가
+    /**
+     * 입력한 tag가 서버에 존재하는지 확인한 뒤 초대 목록에 추가함
+     * 중복·본인 tag·최대 인원 초과는 여기서 걸러짐
+     */
     private void verifyAndAddInviteTag() {
         String tag = usersEdit.getText().toString().trim();
         if (tag.isEmpty()) return;
@@ -213,8 +236,8 @@ public class CreateTeamActivity extends AppCompatActivity {
                     .get()
                     .build();
 
+            // GET /api/user/tag — tag 존재 여부 확인
             ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
-                // tag 확인 요청 실패
                 @Override
                 public void onFailure(Call call, IOException e) {
                     runOnUiThread(() -> {
@@ -223,7 +246,6 @@ public class CreateTeamActivity extends AppCompatActivity {
                     });
                 }
 
-                // tag 확인 응답 처리
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
                     String resBody = response.body() != null ? response.body().string() : "";
@@ -252,6 +274,7 @@ public class CreateTeamActivity extends AppCompatActivity {
                             String foundName = data.optString("name", foundTag);
                             String foundUid = data.optString("uid", "");
 
+                            // [중요] 본인 tag는 초대 목록에 넣지 않음
                             String myUid = SessionManager.getInstance().getUid();
                             if (myUid != null && myUid.equals(foundUid)) {
                                 showDialog("본인 tag는 초대할 수 없습니다.");
@@ -281,7 +304,9 @@ public class CreateTeamActivity extends AppCompatActivity {
         }
     }
 
-    // 초대 목록에 같은 tag 있는지 확인
+    /**
+     * 초대 목록에 동일 tag가 이미 있는지 확인함
+     */
     private boolean containsTag(String tag) {
         for (InviteMember member : inviteMembers) {
             if (member.tag.equals(tag)) return true;
@@ -289,12 +314,16 @@ public class CreateTeamActivity extends AppCompatActivity {
         return false;
     }
 
-    // 초대 인원 수 UI 갱신
+    /**
+     * 초대 인원 수 UI를 (n/5) 형식으로 갱신함
+     */
     private void updateInviteCount() {
         usersCountTv.setText("(" + inviteMembers.size() + "/" + MAX_INVITE_COUNT + ")");
     }
 
-    // 이름·날짜 다 채워졌을 때만 생성 버튼 활성화
+    /**
+     * 이름·날짜 검증이 모두 통과했을 때만 생성 버튼 활성화함
+     */
     private void updateCreateButton() {
         for (boolean b : check) {
             if (!b) {
@@ -305,10 +334,16 @@ public class CreateTeamActivity extends AppCompatActivity {
         createBtn.setEnabled(true);
     }
 
-    // 서버에 팀 생성 POST
+    // --- API ---
+
+    /**
+     * 검증된 입력값으로 서버에 팀 생성 POST 보냄
+     * 성공하면 초대 팀원이 있을 때 순차 초대 이어감
+     */
     private void createTeam() {
         if (!check[0] || !check[1]) return;
 
+        // API 호출 전 로그인 uid 확인
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) {
             showDialog("로그인 정보가 없습니다.");
@@ -332,8 +367,8 @@ public class CreateTeamActivity extends AppCompatActivity {
                     .addHeader("uid", uid)
                     .build();
 
+            // POST /api/team — 팀 생성
             ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
-                // 팀 생성 요청 실패
                 @Override
                 public void onFailure(Call call, IOException e) {
                     runOnUiThread(() -> {
@@ -342,7 +377,6 @@ public class CreateTeamActivity extends AppCompatActivity {
                     });
                 }
 
-                // 팀 생성 성공하면 초대 이어감
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
                     String resBody = response.body() != null ? response.body().string() : "";
@@ -381,7 +415,10 @@ public class CreateTeamActivity extends AppCompatActivity {
         }
     }
 
-    // 초대 멤버를 하나씩 순서대로 보내기
+    /**
+     * 초대 팀원을 인덱스 순서대로 하나씩 서버에 전송함
+     * 재귀 호출로 순차 처리해서 동시 요청 충돌 방지함
+     */
     private void inviteMembersSequentially(String uid, long teamId, int index) {
         if (index >= inviteMembers.size()) {
             showDialogAndFinish("팀이 생성되었고 초대를 보냈습니다.");
@@ -402,8 +439,8 @@ public class CreateTeamActivity extends AppCompatActivity {
                     .addHeader("uid", uid)
                     .build();
 
+            // POST /api/team/invite — 팀원 초대 전송
             ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
-                // 초대 요청 실패
                 @Override
                 public void onFailure(Call call, IOException e) {
                     runOnUiThread(() -> {
@@ -412,7 +449,6 @@ public class CreateTeamActivity extends AppCompatActivity {
                     });
                 }
 
-                // 다음 멤버 초대 이어감
                 @Override
                 public void onResponse(Call call, Response response) {
                     runOnUiThread(() -> inviteMembersSequentially(uid, teamId, index + 1));
@@ -424,14 +460,18 @@ public class CreateTeamActivity extends AppCompatActivity {
         }
     }
 
-    // 안내 다이얼로그 띄우기
+    /**
+     * 안내 메시지 대화상자 표시함
+     */
     private void showDialog(String message) {
         CommonDialog dialog = new CommonDialog(this, message, "확인");
         dialog.setOnConfirmListener(v -> dialog.dismiss());
         dialog.show();
     }
 
-    // 안내 후 화면 닫기
+    /**
+     * 안내 메시지 표시한 뒤 Activity 종료함
+     */
     private void showDialogAndFinish(String message) {
         CommonDialog dialog = new CommonDialog(this, message, "확인");
         dialog.setOnConfirmListener(v -> {

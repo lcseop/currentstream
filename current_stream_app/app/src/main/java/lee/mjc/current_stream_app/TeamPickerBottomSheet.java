@@ -23,9 +23,15 @@ import okhttp3.Callback;
 import okhttp3.Request;
 import okhttp3.Response;
 
-// 팀 선택 바텀시트 (팀 전환, 새 팀 만들기)
+/**
+ * 팀 선택 바텀시트 띄우고 현재 팀 바꾸기·새 팀 만들기 제공함
+ * 이미 불러온 팀 목록 넘기거나 loadAndShow로 서버에서 GET /api/team 후 띄움
+ */
 public final class TeamPickerBottomSheet {
 
+    /**
+     * 바텀시트에서 팀 골랐을 때 상위 화면에 알려주는 콜백임
+     */
     public interface OnTeamSelectedListener {
         void onTeamSelected(TeamItem team);
     }
@@ -33,7 +39,10 @@ public final class TeamPickerBottomSheet {
     private TeamPickerBottomSheet() {
     }
 
-    // 팀 목록 바텀시트 표시 (팀 선택, 새 팀 만들기)
+    /**
+     * 팀 목록 바텀시트 띄움
+     * 목록 비어 있으면 RecyclerView 숨기고 새 팀 만들기 버튼만 보임
+     */
     public static void show(
             AppCompatActivity activity,
             List<TeamItem> teams,
@@ -73,13 +82,17 @@ public final class TeamPickerBottomSheet {
         dialog.show();
     }
 
-    // 서버에서 팀 목록 불러온 뒤 바텀시트 표시
+    /**
+     * GET /api/team 으로 내 팀 목록 불러온 뒤 바텀시트 띄움
+     * uid 없으면 API 안 치고 로그인 에러 대화상자만 띄움
+     */
     public static void loadAndShow(
             AppCompatActivity activity,
             @Nullable Long selectedTeamId,
             OnTeamSelectedListener listener,
             Runnable onCreateTeamClick
     ) {
+        // [중요] API 호출 전 로그인 uid 확인 — 내 팀 목록은 uid 헤더 필수
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) {
             CommonDialog.showError(activity, "로그인 정보가 없습니다.");
@@ -92,6 +105,7 @@ public final class TeamPickerBottomSheet {
                 .addHeader("uid", uid)
                 .build();
 
+        // [중요] GET /api/team — 로그인한 사용자가 속한 팀 목록 조회
         ApiHelper.CLIENT.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
@@ -127,28 +141,38 @@ public final class TeamPickerBottomSheet {
         });
     }
 
+    /**
+     * 바텀시트 안 팀 목록 RecyclerView 어댑터임
+     * 지금 선택된 팀에 뱃지 보여서 어느 팀 보고 있는지 알 수 있게 함
+     */
     private static class TeamPickerAdapter extends RecyclerView.Adapter<TeamPickerAdapter.TeamVH> {
         private final List<TeamItem> items;
         private final Long selectedTeamId;
         private final OnTeamSelectedListener listener;
 
-        // 팀 목록 어댑터 생성
+        /**
+         * 팀 목록·현재 선택 teamId·선택 콜백 받아서 만듦
+         */
         TeamPickerAdapter(List<TeamItem> items, Long selectedTeamId, OnTeamSelectedListener listener) {
             this.items = items;
             this.selectedTeamId = selectedTeamId;
             this.listener = listener;
         }
 
+        /**
+         * 팀 한 줄 레이아웃 inflate해서 ViewHolder 만듦
+         */
         @Override
-        // 팀 항목 ViewHolder 생성
         public TeamVH onCreateViewHolder(android.view.ViewGroup parent, int viewType) {
             View v = LayoutInflater.from(parent.getContext())
                     .inflate(R.layout.main_bottom_sheet_team_item, parent, false);
             return new TeamVH(v);
         }
 
+        /**
+         * 팀 이름·D-day·선택 뱃지 바인딩하고 클릭하면 선택 콜백 호출함
+         */
         @Override
-        // 팀 이름, D-day, 선택 뱃지 바인딩
         public void onBindViewHolder(TeamVH holder, int position) {
             TeamItem item = items.get(position);
             boolean selected = selectedTeamId != null && selectedTeamId == item.id;
@@ -168,12 +192,17 @@ public final class TeamPickerBottomSheet {
             return items.size();
         }
 
+        /**
+         * 팀 선택 한 줄 뷰 들고 있는 ViewHolder임
+         */
         static class TeamVH extends RecyclerView.ViewHolder {
             TextView nameTv;
             TextView deadlineTv;
             TextView selectedBadge;
 
-            // ViewHolder 뷰 연결
+            /**
+             * 레이아웃에서 팀명·마감일·선택 뱃지 TextView 연결함
+             */
             TeamVH(View itemView) {
                 super(itemView);
                 nameTv = itemView.findViewById(R.id.item_team_name);

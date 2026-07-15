@@ -8,36 +8,48 @@ import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 
-// 백엔드 서버 호출할 때 공통으로 쓰는 HTTP 클라이언트, 응답 처리 유틸
+/**
+ * API 호출할 때 자주 쓰는 HTTP 도우미임.
+ * OkHttp, JSON, uid 세션 헤더, UI 스레드 처리를 한곳에 모아둠.
+ */
 public final class ApiHelper {
 
-    // JSON MediaType static으로 저장
+    /** JSON 요청·응답 본문 타입 */
     public static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-    // OkHttpClient를 미리 static으로 할당
+
+    /** 앱 전역에서 같이 쓰는 OkHttpClient */
     public static final OkHttpClient CLIENT = new OkHttpClient();
 
+    /** 유틸 클래스라 new 막음 */
     private ApiHelper() {}
 
-    // optString과 endsWith 함수를 통해 responseCode가 insert_ok, select_ok 같은 형식이면 true 반환
-    // getString과 달리 optString은 해당 문자열이 없으면 예외 대신에 빈 문자열(fallback)을 출력함.
+    /**
+     * [중요] 서버 응답이 성공인지 봄.
+     * responseCode가 _ok로 끝나야 성공으로 처리함.
+     * 이거 안 맞으면 세션 저장·화면 갱신 하면 안 됨
+     */
     public static boolean isSuccess(JSONObject root) {
         return root.optString("responseCode", "").endsWith("_ok");
     }
 
-    // 서버 message가 없으면 fallback 문구 사용
+    /** 서버 message 읽어옴. 비어 있으면 기본 문구 씀 */
     public static String getMessage(JSONObject root, String fallback) {
         String message = root.optString("message", "");
         return message.isEmpty() ? fallback : message;
     }
 
-    // JSON body에 넣을 문자열 이스케이프 함수
+    /** JSON 문자열 안 특수문자 이스케이프함. 수동 JSON 조립할 때 파싱 안 깨지게 */
     public static String escapeJson(String value) {
+        // null이면 빈 문자열로 처리
         if (value == null) return "";
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
-    // uid 헤더가 필요한 GET/POST 등에 쓰는 Request.Builder
-    // Request 클래스는 OkHttpClient에서 가져옴.
+    /**
+     * [중요] uid 헤더 넣은 API 요청 빌더 만듦.
+     * 백엔드가 이 헤더로 로그인한 유저를 구분함.
+     * uid 없으면 401 나서 SessionManager에서 꼭 꺼내 넣음
+     */
     public static Request.Builder uidRequest(String url) {
         String uid = SessionManager.getInstance().getUid();
         return new Request.Builder()
@@ -45,16 +57,20 @@ public final class ApiHelper {
                 .addHeader("uid", uid != null ? uid : "");
     }
 
-    // Activity가 종료 중이면 UI 콜백을 실행하지 않음 (WindowLeaked 방지)
+    /** Activity가 아직 살아있는지 확인함. finish 됐으면 다이얼로그 띄우면 안 됨 */
     public static boolean isActivityAlive(Activity activity) {
         return activity != null && !activity.isFinishing() && !activity.isDestroyed();
     }
 
+    /** Activity 살아있을 때만 UI 스레드에서 실행함 */
     public static void runOnUiThreadSafe(Activity activity, Runnable action) {
+        // Activity나 action 없으면 그냥 안 함
         if (!isActivityAlive(activity) || action == null) {
             return;
         }
         activity.runOnUiThread(() -> {
+            // [중요] 큐에 올린 뒤 실행 시점엔 Activity가 이미 finish 됐을 수 있음
+            // 그때 Toast·다이얼로그 띄우면 WindowLeaked 남
             if (isActivityAlive(activity)) {
                 action.run();
             }

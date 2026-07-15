@@ -20,18 +20,27 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.util.ArrayList;
 import java.util.List;
 
-// FAB 스피드 다이얼 (+ 버튼 위로 미니 FAB + 라벨)
+/**
+ * 메인 FAB 누르면 위로 미니 버튼·라벨 펼쳐지는 스피드 다이얼 메뉴임
+ * 오버레이·애니메이션·FAB 아이콘 전환 한 클래스에서 관리해서 화면마다 FAB UX 재사용함
+ */
 public class FabSpeedDialMenu {
 
     private static final int MINI_BUTTON_SIZE_DP = 50;
     private static final int ROW_VERTICAL_PADDING_DP = 10;
 
+    /**
+     * 스피드 다이얼에 넣을 메뉴 항목 하나임
+     */
     public static class Item {
         public final String label;
         @DrawableRes public final int iconResId;
         public final Runnable action;
 
-        // 스피드 다이얼 메뉴 항목 (라벨, 아이콘, 클릭 액션)
+        /**
+         * 라벨·아이콘·눌렀을 때 할 일 받아서 만듦
+         * action은 메뉴 접힌 뒤 UI 스레드에서 실행됨
+         */
         public Item(String label, @DrawableRes int iconResId, Runnable action) {
             this.label = label;
             this.iconResId = iconResId;
@@ -46,7 +55,10 @@ public class FabSpeedDialMenu {
     private final LinearLayout menuContainer;
     private boolean expanded = false;
 
-    // FAB 스피드 다이얼 메뉴 초기화 (오버레이, 메뉴 항목, 토글)
+    /**
+     * 스피드 다이얼 메뉴 초기화함
+     * content 루트에 오버레이·메뉴 컨테이너 붙이고 FAB 클릭에 toggle 연결
+     */
     public FabSpeedDialMenu(AppCompatActivity activity, FloatingActionButton mainFab, List<Item> items) {
         this.activity = activity;
         this.mainFab = mainFab;
@@ -54,6 +66,7 @@ public class FabSpeedDialMenu {
 
         FrameLayout root = activity.findViewById(android.R.id.content);
 
+        // 반투명 오버레이 — 바깥 누르면 메뉴 접힘
         overlay = new FrameLayout(activity);
         overlay.setLayoutParams(new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -84,7 +97,9 @@ public class FabSpeedDialMenu {
         mainFab.setOnClickListener(v -> toggle());
     }
 
-    // FAB 위쪽에 메뉴 컨테이너 위치 조정
+    /**
+     * 메뉴 컨테이너 FAB 바로 위에 위치시킴
+     */
     private void positionMenuAboveFab() {
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) menuContainer.getLayoutParams();
         int fabMargin = dp(24);
@@ -93,7 +108,10 @@ public class FabSpeedDialMenu {
         menuContainer.setLayoutParams(params);
     }
 
-    // 메뉴 항목들을 FAB 위에 역순으로 배치
+    /**
+     * 메뉴 항목들 FAB 위쪽에 역순으로 배치함
+     * 아래 항목이 FAB에 가깝게 보이도록 추가 순서랑 표시 순서 반대로 함
+     */
     private void buildMenuItems() {
         menuContainer.removeAllViews();
         for (int i = items.size() - 1; i >= 0; i--) {
@@ -101,7 +119,10 @@ public class FabSpeedDialMenu {
         }
     }
 
-    // 라벨 + 미니 원형 버튼 한 줄 생성
+    /**
+     * 라벨 + 미니 원형 아이콘 버튼 한 줄 만듦
+     * 라벨·아이콘 둘 다 같은 클릭 리스너 씀
+     */
     private View createMenuRow(Item item) {
         LinearLayout row = new LinearLayout(activity);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -150,7 +171,9 @@ public class FabSpeedDialMenu {
         return row;
     }
 
-    // 메뉴 펼침/접힘 토글
+    /**
+     * 메뉴 펼침/접힘 토글함
+     */
     private void toggle() {
         if (expanded) {
             collapse();
@@ -159,7 +182,9 @@ public class FabSpeedDialMenu {
         }
     }
 
-    // 스피드 다이얼 메뉴 펼치기 (애니메이션, FAB 아이콘 X로 변경)
+    /**
+     * 메뉴 펼침 — 오버레이 보이고 FAB 아이콘 X로 바꿈
+     */
     private void expand() {
         expanded = true;
         positionMenuAboveFab();
@@ -178,7 +203,9 @@ public class FabSpeedDialMenu {
         mainFab.animate().rotation(0f).setDuration(200).start();
     }
 
-    // 스피드 다이얼 메뉴 접기
+    /**
+     * 메뉴 접음 — 외부에서도 collapse() 호출 가능
+     */
     public void collapse() {
         if (!expanded) return;
         expanded = false;
@@ -194,7 +221,9 @@ public class FabSpeedDialMenu {
         mainFab.animate().rotation(0f).setDuration(160).start();
     }
 
-    // 오버레이·메뉴·FAB를 최상위로 올림
+    /**
+     * 다른 뷰에 가려지지 않게 z-order 맨 앞으로 올림
+     */
     private void bringFabToFront() {
         ViewGroup content = activity.findViewById(android.R.id.content);
         content.bringChildToFront(overlay);
@@ -204,7 +233,9 @@ public class FabSpeedDialMenu {
         }
     }
 
-    // dp 값을 px로 변환
+    /**
+     * dp 값을 현재 화면 밀도 기준 px로 바꿈
+     */
     private int dp(int value) {
         float density = activity.getResources().getDisplayMetrics().density;
         return Math.round(value * density);

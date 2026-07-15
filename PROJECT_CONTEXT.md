@@ -1,6 +1,8 @@
 # Current Stream — 프로젝트 맥락 정리
 
-이 문서는 앱(`current_stream_app`)과 백엔드(`current-stream-backend`)를 함께 개발하면서 파악한 구조, API, 화면 흐름, 구현 상태를 정리한 것이다.
+앱(`current_stream_app`)과 백엔드(`current-stream-backend`)의 구조, API, 화면 흐름, **전체 클래스 목록**을 정리한 문서입니다.
+
+> **최신화 기준:** 2026-05-27 — TeamsActivity·팀 로그·SessionHelper·예외처리 보강 등 반영
 
 ---
 
@@ -11,233 +13,263 @@
 | `current_stream_app/` | Android 앱 (Java, OkHttp, Firebase Auth) |
 | `current-stream-backend/` | Spring Boot REST API, MySQL, JPA |
 
-- 에뮬레이터 기준 API 베이스 URL: `http://10.0.2.2:8080`
-- 실기기 테스트 시 PC IP로 `BASE_URL` 변경 필요
+| 환경 | API 베이스 URL |
+|------|----------------|
+| 에뮬레이터 | `http://10.0.2.2:8080` |
+| EC2 배포 (현재 build.gradle) | `http://3.36.62.169:8080` (`BuildConfig.API_BASE_URL` → `ApiConfig.BASE_URL`) |
 
 ---
 
-## 2. 인증 흐름
+## 2. 전체 클래스 · 기능 표
 
-### Firebase + 서버 로그인
+구현된 **모든 클래스**와 **하는 일**을 한 줄로 정리한 표입니다.  
+패키지: Android `lee.mjc.current_stream_app` / 백엔드 `com.currentstreambackend.currentstreambackend`
 
-1. 앱: Firebase로 로그인 → `idToken` 발급
+### 2-1. Android (35개)
+
+| 클래스 | 분류 | 기능 (간략) |
+|--------|------|-------------|
+| `CurrentStreamApplication` | Application | 앱 시작 시 전역 설정 (라이트 모드 고정) |
+| `SplashActivity` | Activity | Firebase 로그인 여부 확인 후 자동 login API → Main 또는 Login |
+| `LoginActivity` | Activity | 이메일·구글 로그인, Firebase 토큰을 서버에 보내 세션 확보 |
+| `RegisterActivity` | Activity | Firebase 회원가입 + signup API, 입력값 검증 |
+| `MainActivity` | Activity | 메인 화면: 팀 선택, 내 목표, 진행률, 최근 활동, 초대, FAB |
+| `CreateTeamActivity` | Activity | 팀 이름·마감일 입력, tag로 멤버 추가 후 팀 생성·초대 API |
+| `TeamsActivity` | Activity | 팀 상세: 멤버별 목표 목록, 팀 수정·삭제·탈퇴, FAB |
+| `CommonDialog` | Dialog | 확인 버튼 하나짜리 알림창 |
+| `ConfirmCancelDialog` | Dialog | 확인/취소 선택 다이얼로그 |
+| `AddGoalDialog` | Dialog | 목표 텍스트·비고·마감일 입력 후 목표 생성 API 호출 |
+| `GoalDetailDialog` | Dialog | 목표 상세 보기, 완료 처리(상태 변경 API) |
+| `InviteMemberDialog` | Dialog | tag로 팀원 검색 후 초대 API 호출 |
+| `TeamPickerBottomSheet` | UI | 가입한 팀 목록 바텀시트, 팀 전환 |
+| `FabSpeedDialMenu` | UI | FAB 누르면 펼쳐지는 메뉴 (팀 만들기·초대·목표 추가) |
+| `MyGoalAdapter` | Adapter | Main 화면 진행 중/완료 목표 RecyclerView |
+| `TeamLogAdapter` | Adapter | 최근 활동 로그 목록 + "N분 전" 표시 |
+| `TeamMemberAdapter` | Adapter | Teams 화면 멤버·목표 트리, 접기/펼치기 |
+| `InviteAdapter` | Adapter | 받은 초대 목록, 수락/거절 버튼 |
+| `CreateTeamMemberAdapter` | Adapter | 팀 만들기 화면의 초대 예정 멤버 리스트 |
+| `GoalMemberPickerAdapter` | Adapter | 목표 추가 시 담당 멤버 선택 리스트 |
+| `GoalItem` | Model | API 목표 JSON을 앱 필드로 담는 그릇 |
+| `TeamItem` | Model | API 팀 JSON을 앱 필드로 담는 그릇 |
+| `InviteItem` | Model | API 초대 JSON을 앱 필드로 담는 그릇 |
+| `TeamLogItem` | Model | 팀 활동 로그 한 줄 (메시지·시각) |
+| `TeamMemberItem` | Model | 멤버 정보 + 해당 멤버 목표 목록 |
+| `TeamGoalItem` | Model | 팀 전체 목표 한 건 (Teams 화면용) |
+| `InviteMember` | Model | 팀 생성 전, 아직 API 안 보낸 초대 대상 임시 저장 |
+| `ApiConfig` | Util | 서버 주소 (`BuildConfig.API_BASE_URL`) |
+| `ApiHelper` | Util | OkHttp 공통, 응답 성공 판별, uid 헤더, UI 스레드 안전 처리 |
+| `SessionManager` | Util | 로그인 정보·현재 팀 ID 메모리 보관 (싱글톤) |
+| `SessionHelper` | Util | login API 응답 검증 후 SessionManager에 저장 |
+| `DateTimeUtil` | Util | 날짜 파싱, "3분 전", D-day 계산 |
+| `ColorUtil` | Util | 멤버 색상 HEX → Android Color 변환 |
+| `DialogUiHelper` | Util | 다이얼로그·태그 배지 공통 UI 처리 |
+| `TeamUiConstants` | Util | 팀 이름 글자 수 제한 등 UI 상수 |
+
+> `MainActivity` 내부 `TeamBottomSheetAdapter`(private)는 팀 선택 바텀시트 전용 어댑터입니다.
+
+### 2-2. 백엔드 (36개)
+
+| 클래스 | 분류 | 기능 (간략) |
+|--------|------|-------------|
+| `CurrentStreamBackendApplication` | 진입점 | Spring Boot 앱 실행 |
+| `FirebaseConfig` | 설정 | Firebase Admin SDK 초기화 (토큰 검증용) |
+| `SecurityConfig` | 설정 | HTTP 보안: CSRF 끔, API 전 경로 허용 |
+| `ApiResponse` | common | 모든 API 응답 공통 형식 (코드·메시지·데이터) |
+| `ResponseCode` | common | insert_ok / select_ok 등 결과 코드 enum |
+| `GlobalExceptionHandler` | common | 예외를 HTTP 상태코드 + 한글 메시지로 변환 |
+| `EmailNotVerifiedException` | common | 이메일 미인증 시 던지는 예외 |
+| `TokenRequest` | common | login 요청 body (idToken 필드) |
+| `UsersRestController` | users | 회원가입·로그인·tag 검색·탈퇴 HTTP API |
+| `UsersService` | users | Firebase 토큰 검증, 사용자 생성·조회·탈퇴 처리 |
+| `UsersEntity` | users | users DB 테이블 매핑 |
+| `UsersDto` | users | 사용자 정보 API 응답 객체 |
+| `UsersRepository` | users | uid·tag로 사용자 DB 조회 |
+| `UsersInterface` | users | 사용자 엔티티 공통 필드 정의 |
+| `TeamsRestController` | teams | 팀·초대·멤버·탈퇴 HTTP API |
+| `TeamsService` | teams | 팀 생성/수정/삭제, 초대·수락, 멤버 조회, 색상 배정 |
+| `TeamsEntity` | teams | teams DB 테이블 매핑 |
+| `TeamsDto` | teams | 팀 정보 API 응답 객체 |
+| `TeamsRepository` | teams | 팀 DB CRUD |
+| `TeamMemberDto` | teams | 팀 멤버 목록 API 응답 (이름·tag·색·팀장 여부) |
+| `InviteEntity` | invite | team_invite DB 테이블 (초대 상태·스냅샷) |
+| `InviteDto` | invite | 초대 정보 API 응답 객체 |
+| `InviteRepository` | invite | 초대 DB 조회·삭제 |
+| `MappingEntity` | mapping | user–team 소속 관계 + 멤버 색상 DB |
+| `MappingRepository` | mapping | 팀원 여부 확인, 매핑 삭제 |
+| `MappingDto` | mapping | 매핑 보조 DTO |
+| `GoalRestController` | goal | 목표 생성·조회·상태변경·삭제 HTTP API |
+| `GoalService` | goal | 목표 비즈니스 로직, 권한·입력 검증, 팀 로그 기록 |
+| `GoalEntity` | goal | goals DB 테이블 (진행/완료/삭제 상태) |
+| `GoalDto` | goal | 목표 정보 API 응답 객체 |
+| `GoalRepository` | goal | 팀·유저별 목표 DB 조회·삭제 |
+| `TeamLogsRestController` | teamlogs | 팀 최근 활동 로그 조회 API |
+| `TeamLogsService` | teamlogs | 로그 저장·조회 (팀원만, 한국 시각) |
+| `TeamLogsEntity` | teamlogs | team_logs DB 테이블 |
+| `TeamLogsDto` | teamlogs | 로그 API 응답 (메시지·시각·millis) |
+| `TeamLogsRepository` | teamlogs | 팀별 최근 10건 조회, 팀 삭제 시 로그 삭제 |
+
+---
+
+## 3. 인증 흐름
+
+1. 앱: Firebase 로그인 → `idToken` 발급
 2. 앱: `POST /api/user/login` body `{ "idToken": "..." }`
-3. 서버: Firebase 토큰 검증 후 `UsersDto` 반환 (`uid`, `name`, `email`, `tag` 등)
-4. 앱: `SessionManager`에 저장
+3. 서버: Firebase Admin SDK로 토큰 검증 → `UsersDto` 반환 (`id`, `uid`, `name`, `email`, `tag`)
+4. 앱: `SessionHelper.applyLoginResponse`로 `responseCode`가 `*_ok`이고 `uid`가 있을 때만 `SessionManager`에 저장
 
 ### SessionManager (싱글톤)
 
 | 필드 | 용도 |
 |------|------|
 | `idToken` | Firebase JWT |
-| `uid` | 백엔드 사용자 식별자 (API 헤더 `uid`) |
+| `uid` | Firebase uid — **대부분 API의 `uid` 헤더** |
 | `tag` | 표시용 태그 (예: `emailprefix#1234`) |
-| `currentTeamId` | 앱 전역에서 선택 중인 팀 ID |
+| `userName` | 닉네임 |
+| `userId` | DB `users.id` (팀장 여부·목표 소유자 비교) |
+| `currentTeamId` | 앱 전역 선택 팀 ID |
 
 ### Spring Security
 
-- `/api/user/login`, `/api/user/signup` 외 API는 앱에서 **`uid` 헤더**로 사용자를 구분한다.
-- 개발 중 `SecurityConfig`에서 `/api/**`를 `permitAll()`로 열어 두었음 (세션 로그인 없이 uid 헤더만 사용하는 구조).
+- `/api/**`는 `permitAll()` — **세션 쿠키 없음**, 앱이 `uid` 헤더로 사용자 식별
+- 실제 권한(팀장/멤버)은 각 **Service**에서 검증
+- [한계] uid 헤더 위조 가능 → 장기적으로 Firebase 토큰 검증 필터 필요
 
 ---
 
-## 3. 공통 API 응답 형식
+## 4. 공통 API 응답 형식
 
 ```json
 {
   "responseCode": "select_ok",
   "message": "teams list",
-  "responseData": { ... }
+  "responseData": { }
 }
 ```
 
-- 성공 코드: `insert_ok`, `update_ok`, `delete_ok`, `select_ok` (앱에서는 `endsWith("_ok")`로 판별)
-- 실패 시 HTTP 4xx/5xx 또는 `failed` 등
+- 성공: `insert_ok`, `update_ok`, `delete_ok`, `select_ok` — 앱은 `ApiHelper.isSuccess()` (`endsWith("_ok")`)
+- 실패: HTTP 4xx/5xx + `GlobalExceptionHandler`가 한글 `message` 반환 (내부 스택 노출 없음)
 
 ---
 
-## 4. 주요 API 엔드포인트
+## 5. API 엔드포인트 (전체)
 
-### 사용자 (`/api/user`)
-
-| 메서드 | 경로 | 설명 |
-|--------|------|------|
-| POST | `/api/user/login` | idToken → UsersDto |
-| POST | `/api/user/signup` | 회원가입 |
-| GET | `/api/user/tag?tag=` | tag 존재 확인 (팀 만들기 시 초대용) |
-
-### 팀 (`/api/team`)
+### 사용자 `/api/user`
 
 | 메서드 | 경로 | 헤더 | 설명 |
 |--------|------|------|------|
-| GET | `/api/team` | `uid` | 내 팀 목록 → `List<TeamsDto>` |
-| POST | `/api/team` | `uid` | 팀 생성 body: `name`, `endDate` (yyyy-MM-dd) |
-| GET | `/api/team/invite` | `uid` | 받은 초대 목록 → `List<InviteDto>` |
-| POST | `/api/team/invite` | `uid` | 초대 body: `teamId`, `tag` |
-| POST | `/api/team/invite/{inviteId}/accept` | `uid` | 초대 수락 |
-| POST | `/api/team/invite/{inviteId}/reject` | `uid` | 초대 거절 |
+| POST | `/signup` | — | body: `idToken`, `name` |
+| POST | `/login` | — | body: `idToken` → UsersDto |
+| GET | `/tag?tag=` | — | tag로 사용자 검색 (초대용) |
+| DELETE | `/` | `uid` | 회원 탈퇴 (연관 팀·목표·초대 정리) |
 
-### 목표 (`/api/goal`)
+### 팀 `/api/team`
 
 | 메서드 | 경로 | 헤더 | 설명 |
 |--------|------|------|------|
-| GET | `/api/goal/team/{teamId}` | `uid` | **해당 사용자**의 팀 내 목표 목록 |
-| POST | `/api/goal` | `uid` | 목표 생성 |
-| PATCH | `/api/goal/{goalId}/status` | `uid` | 상태 변경 |
+| GET | `/` | `uid` | 내 팀 목록 |
+| POST | `/` | `uid` | 팀 생성 body: `name`, `endDate` |
+| PATCH | `/{teamId}` | `uid` | 팀 정보 수정 (팀장) |
+| DELETE | `/{teamId}` | `uid` | 팀 삭제 (팀장, 연관 데이터 일괄 삭제) |
+| DELETE | `/{teamId}/leave` | `uid` | 팀 탈퇴 (리더 불가, 본인 목표 삭제) |
+| GET | `/{teamId}/members` | `uid` | 팀 멤버 목록 |
+| GET | `/invite` | `uid` | 받은 초대 (status=0) |
+| POST | `/invite` | `uid` | 초대 body: `teamId`, `tag` |
+| POST | `/invite/{id}/accept` | `uid` | 초대 수락 |
+| POST | `/invite/{id}/reject` | `uid` | 초대 거절 |
 
-### 팀 로그 (`/api/team/log`)
+### 목표 `/api/goal`
 
-| 메서드 | 경로 | 설명 |
-|--------|------|------|
-| GET | `/api/team/log/{teamId}` | 최근 로그 10건 (uid 헤더 없음) |
+| 메서드 | 경로 | 헤더 | 설명 |
+|--------|------|------|------|
+| GET | `/team/{teamId}` | `uid` | **본인** 팀 내 목표 |
+| GET | `/team/{teamId}/all` | `uid` | 팀 전체 목표 (status≠2, 팀원) |
+| POST | `/` | `uid` | 목표 생성 (선택 `targetUserId` — 팀장이 타인 할당) |
+| PATCH | `/{goalId}/status` | `uid` | 상태 0/1/2 변경 |
+| DELETE | `/{goalId}` | `uid` | 목표 삭제 |
+
+### 팀 로그 `/api/team/log`
+
+| 메서드 | 경로 | 헤더 | 설명 |
+|--------|------|------|------|
+| GET | `/{teamId}` | **`uid`** | 최근 로그 10건 (**팀원만**) |
 
 ---
 
-## 5. 백엔드 DTO 요약
+## 6. 화면 흐름
 
-### TeamsDto
+```
+SplashActivity → (자동 로그인) → MainActivity
+              → (실패)       → LoginActivity → RegisterActivity
 
-- `id`, `teamName`, `endDate` (LocalDate → JSON `yyyy-MM-dd`), `leaderId`
+MainActivity
+  ├─ 팀 없음 → empty_layout → CreateTeamActivity
+  ├─ 팀 pill → TeamPickerBottomSheet
+  ├─ 진행률 카드 → TeamsActivity
+  ├─ 종 아이콘 → InviteAdapter 바텀시트
+  ├─ 최근 활동 → TeamLogAdapter (GET /api/team/log)
+  └─ FAB → 팀 만들기 / 초대 / 목표 추가
 
-### InviteDto / InviteEntity
-
-- `id`, `status` (0 요청 / 1 수락 / 2 거절), `userId`, `teamId`
-- **추가 필드**: `teamName`, `inviterName` (초대 생성 시 `TeamsService.inviteUser`에서 저장)
-
-### GoalDto
-
-- `goalText`, `status` (0 진행중, 1 달성, 2 삭제), `remark`, `goalEndDate`, `userId`, `teamId`
-- `getGoals(uid, teamId)`는 **로그인 사용자 본인** 목표만 반환
+TeamsActivity
+  ├─ 멤버별 목표 (진행/완료 접기)
+  ├─ 팀 pill → TeamPickerBottomSheet
+  ├─ 설정(팀장) → 팀 수정·삭제·나가기
+  └─ FAB → 초대 / 목표 추가
+```
 
 ---
 
-## 6. Android 화면·구현 상태
+## 7. DB / 스키마 참고
 
-### 액티비티
+| 테이블 | 비고 |
+|--------|------|
+| `users` | uid, name, email, tag |
+| `teams` | teamName, endDate, leaderId |
+| `mapping` | userId, teamId, userColor |
+| `team_invite` | status, teamName·inviterName 스냅샷 |
+| `goals` | goalText, remark, status, goalEndDate, userId, teamId |
+| `team_logs` | message, createdAt (서버 Asia/Seoul 기준 저장) |
 
-| 클래스 | 상태 | 역할 |
-|--------|------|------|
-| `SplashActivity` | 구현됨 | 자동 로그인, login API → uid/tag 저장 → Main |
-| `LoginActivity` | 구현됨 | 이메일/구글 로그인, login API, uid/tag 저장 |
-| `RegisterActivity` | 구현됨 | 회원가입 + boolean[] 검증 패턴 |
-| `MainActivity` | 구현됨 | 팀 없음/있음, 팀 선택, 목표·진행률, 초대 바텀시트 |
-| `CreateTeamActivity` | 구현됨 | 팀 생성 + tag 초대 |
-| `TeamsActivity` | 스켈레톤 | 레이아웃만 |
-| `CreateTeamActivity` | 위와 동일 | |
+- JPA `ddl-auto: update`
+- JDBC `serverTimezone=Asia/Seoul`, Jackson `time-zone: Asia/Seoul`
 
-### MainActivity (`activity_main.xml`)
+---
 
-**헤더**
+## 8. 네트워킹 (앱)
 
-- `main_team_selector`: 현재 팀명 (클릭 → 팀 목록 바텀시트)
-- `main_notification`: 초대 바텀시트
+- **OkHttp** + `org.json` (Retrofit/Gson 없음)
+- 인증: 요청 헤더 `uid: {Firebase uid}`
+- 비동기: `enqueue` + `runOnUiThread` / `ApiHelper.runOnUiThreadSafe`
+- 성공 판별: HTTP 2xx **및** `ApiHelper.isSuccess(responseBody)`
 
-**팀 있음 (`main_content_layout` + SwipeRefresh)**
+---
 
-- D-Day: `TeamsDto.endDate` 기준 `D-n` / `D+n`
-- 진행률: 본인 목표 중 status=1 / 전체
-- **내 작업**: `main_my_task_tag`에 SessionManager의 **tag** 표시
-- `rv_progress` / `rv_complete`: `main_item_my_task.xml`
-- 최근 현황: `main_team_list` (팀 로그 API 연동은 아직 미구현 가능성 있음 — 레이아웃만 존재)
+## 9. 구현 완료 vs 미완
 
-**팀 없음 (`empty_layout`)**
+### 완료
 
-- "팀이 없습니다" + `main_no_team_create` → `CreateTeamActivity`
-- `main_no_team_logout`
+- Main 최근 활동 ↔ 팀 로그 API (`uid` 헤더)
+- TeamsActivity 멤버·목표 통합 UI
+- 초대 수락/거절, 알림 배지
+- SessionHelper, GlobalExceptionHandler, 팀 탈퇴/삭제 시 연관 데이터 정리
+- 회원 탈퇴 (Main)
+- 팀 이름 앱 검증 2~20자 (`TeamUiConstants`)
 
-**바텀시트 레이아웃**
+### 미완 / 확장 가능
 
-- `main_bottom_sheet_teams.xml` + `main_bottom_sheet_team_item.xml`
-- `main_bottom_sheet_invite.xml` + `main_bottom_sheet_invite_item.xml`
-- 어댑터: `InviteAdapter`, MainActivity 내부 `TeamBottomSheetAdapter`, `GoalAdapter`
+- FCM 푸시 알림 (초대 시)
+- Firebase ID 토큰 기반 API 인증 필터 (uid 위조 방지)
+- Controller `@Valid` 입력 검증 일괄 적용
+- 팀 전체 진행률 (현재 Main 진행률은 본인 목표 기준)
 
-**로딩/에러**
+---
 
-- API 실패 시 `CommonDialog`
-- 팀 목록 비어 있으면 `showEmptyTeamState()` (SwipeRefresh 숨김, empty_layout 표시)
-- `onResume`에서 팀 목록 재조회 (팀 만들기 후 복귀용)
+## 10. 관련 문서
 
-### CreateTeamActivity (`activity_create_team.xml`)
-
-| 기능 | 규칙 |
+| 파일 | 내용 |
 |------|------|
-| 팀 이름 | 2~100자, `boolean[] check[0]` |
-| 목표 날짜 | DatePickerDialog, **오늘+7일 이후**만 선택, `check[1]` |
-| 만들기 버튼 | `check[0] && check[1]`일 때만 활성화 |
-| 팀원 초대 | tag 입력 + Enter → `GET /api/user/tag` 확인 후 리스트 추가 (최대 5명) |
-| 만들기 | `POST /api/team` → 성공 시 등록된 tag마다 `POST /api/team/invite` 순차 호출 |
-
-- 리스트 모델: `InviteMember(name, tag)`
-- 어댑터: `CreateTeamMemberAdapter`
+| `ANDROID_READING_GUIDE.md` | Android 읽기 순서·MainActivity 치트시트·주석 규칙 |
+| `DEPLOY.md` | EC2 배포 (있을 경우) |
 
 ---
 
-## 7. 네트워킹 (앱)
-
-- **OkHttp** 직접 사용 (Retrofit/Gson 없음, `org.json` 파싱)
-- 인증 헤더: `uid: {firebase uid}`
-- 초대 수락/거절 POST: body `{}`, `application/json`
-
----
-
-## 8. DB / 스키마 참고
-
-- `team_invite`에 `team_name`, `inviter_name` 컬럼 추가됨 (`nullable=false`)
-- JPA `ddl-auto: update` — 기존 invite 행이 있으면 마이그레이션 이슈 가능
-- 사용자 `tag`는 회원가입/최초 로그인 시 `emailprefix#랜덤4자리` 형태로 자동 생성
-
----
-
-## 9. 테스트 시나리오
-
-1. **백엔드** `8080` 실행, MySQL 연결 확인
-2. 앱 로그인 → Main
-3. 팀 없음 → `empty_layout` 표시
-4. 팀 만들기 → 이름·날짜·(선택) tag 초대 → Main에서 팀 화면
-5. 헤더 팀명 탭 → 팀 전환
-6. 알림 → 초대 없으면 **빈 바텀시트** (에러 아님), 있으면 수락/거절
-7. 다른 계정 tag로 초대 후 수락 → 팀 참여
-
----
-
-## 10. 아직 미완/확장 가능 영역
-
-- `TeamsActivity` 상세 화면 (멤버별 목표 등)
-- Main **최근 현황** (`main_team_list`) ↔ `GET /api/team/log/{teamId}` 연동
-- 팀 전체 진행률 (현재는 **본인 목표** 기준 진행률)
-- `RegisterActivity`와 동일하게 login 응답 파싱 공통 유틸 분리
-- 실기기용 `BASE_URL` 설정 (BuildConfig 등)
-- Spring Security를 uid 헤더 검증 필터로 정교화
-
----
-
-## 11. 관련 파일 빠른 참조
-
-### 앱
-
-```
-current_stream_app/app/src/main/java/lee/mjc/current_stream_app/
-  MainActivity.java
-  CreateTeamActivity.java
-  SessionManager.java
-  InviteAdapter.java
-  CreateTeamMemberAdapter.java
-  InviteMember.java
-  LoginActivity.java
-  SplashActivity.java
-```
-
-### 백엔드
-
-```
-current-stream-backend/.../models/
-  teams/TeamsRestController.java, TeamsService.java, TeamsDto.java
-  invite/InviteDto.java, InviteEntity.java
-  goal/GoalRestController.java, GoalService.java, GoalDto.java
-  users/UsersRestController.java, UsersService.java
-  config/SecurityConfig.java
-```
-
----
-
-*마지막 업데이트: 대화 기준으로 Main/CreateTeam/초대/팀 없음 화면·tag 표시까지 반영된 상태.*
+*마지막 업데이트: 2026-05-27 — §2 전체 클래스·기능 표 (Android 35 + 백엔드 36)*

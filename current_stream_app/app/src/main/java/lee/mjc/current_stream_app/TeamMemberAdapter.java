@@ -15,9 +15,15 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
 
-// 팀 상세 멤버 목록 어댑터 (진행/완료 목표 아코디언)
+/**
+ * 팀 상세 화면 팀원 카드 목록 보여주는 어댑터임
+ * 팀원별 진행/완료 목표 아코디언 펼치고, 팀장·본인에게만 목표 추가·팀장만 삭제 권한 줌
+ */
 public class TeamMemberAdapter extends RecyclerView.Adapter<TeamMemberAdapter.MemberVH> {
 
+    /**
+     * 팀원 카드에서 목표 추가/상세/삭제 동작 상위 Activity로 넘기는 리스너임
+     */
     public interface Listener {
         void onAddGoal(TeamMemberItem member);
         void onGoalClick(TeamGoalItem goal, TeamMemberItem member);
@@ -29,7 +35,10 @@ public class TeamMemberAdapter extends RecyclerView.Adapter<TeamMemberAdapter.Me
     private final Long myUserId;
     private final Listener listener;
 
-    // 팀 멤버 목록, 팀장 여부, 내 userId, 리스너로 어댑터 생성
+    /**
+     * 팀원 목록·권한 정보·이벤트 리스너 받아서 만듦
+     * isLeader랑 myUserId로 UI 노출 권한 클라에서 판별함 (서버 권한이랑 맞춰둠)
+     */
     public TeamMemberAdapter(List<TeamMemberItem> members, boolean isLeader, Long myUserId, Listener listener) {
         this.members = members;
         this.isLeader = isLeader;
@@ -37,17 +46,21 @@ public class TeamMemberAdapter extends RecyclerView.Adapter<TeamMemberAdapter.Me
         this.listener = listener;
     }
 
+    /**
+     * 팀원 카드 한 줄 레이아웃 inflate해서 ViewHolder 만듦
+     */
     @NonNull
     @Override
-    // 멤버 카드 ViewHolder 생성
     public MemberVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View v = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.teams_member_list, parent, false);
         return new MemberVH(v);
     }
 
+    /**
+     * 팀원 정보·아코디언·목표 추가 버튼 바인딩하고 클릭 이벤트 연결함
+     */
     @Override
-    // 멤버 정보, 아코디언, 목표 목록 바인딩
     public void onBindViewHolder(@NonNull MemberVH holder, int position) {
         TeamMemberItem member = members.get(position);
         int memberColor = ColorUtil.parseColorOrDefault(member.userColor, Color.parseColor("#E8E8E8"));
@@ -65,6 +78,7 @@ public class TeamMemberAdapter extends RecyclerView.Adapter<TeamMemberAdapter.Me
         }
         DialogUiHelper.applyTagBadge(holder.tagTv, member.tag);
 
+        // [중요] 목표 추가 권한 — 팀장이거나 해당 팀원 본인(myUserId == member.userId)일 때만 + 버튼 보임
         boolean canAddGoal = isLeader || (myUserId != null && myUserId == member.userId);
         holder.addBtn.setVisibility(canAddGoal ? View.VISIBLE : View.GONE);
 
@@ -85,7 +99,10 @@ public class TeamMemberAdapter extends RecyclerView.Adapter<TeamMemberAdapter.Me
         bindGoalSection(holder, member);
     }
 
-    // 진행 중/완료 목표 섹션 동적 렌더링
+    /**
+     * 진행 중/완료 목표 섹션 동적으로 inflate해서 컨테이너에 넣음
+     * 목표 행마다 클릭·삭제 리스너 개별 연결함
+     */
     private void bindGoalSection(MemberVH holder, TeamMemberItem member) {
         holder.onContainer.removeAllViews();
         holder.comContainer.removeAllViews();
@@ -95,6 +112,7 @@ public class TeamMemberAdapter extends RecyclerView.Adapter<TeamMemberAdapter.Me
 
         LayoutInflater inflater = LayoutInflater.from(holder.itemView.getContext());
 
+        // 진행 중 목표 행들
         int ongoingCount = member.ongoingGoals.size();
         for (int i = 0; i < ongoingCount; i++) {
             TeamGoalItem goal = member.ongoingGoals.get(i);
@@ -107,6 +125,7 @@ public class TeamMemberAdapter extends RecyclerView.Adapter<TeamMemberAdapter.Me
             titleTv.setText(goal.goalText);
             applyDeadlineText(deadlineTv, goal.goalEndDate);
 
+            // [중요] 목표 삭제 권한 — 팀장(isLeader)만 삭제 버튼 보임, 담당자 본인은 삭제 못 함
             banBtn.setVisibility(isLeader ? View.VISIBLE : View.GONE);
             banBtn.setOnClickListener(v -> {
                 if (listener != null) listener.onDeleteGoal(goal);
@@ -119,6 +138,7 @@ public class TeamMemberAdapter extends RecyclerView.Adapter<TeamMemberAdapter.Me
             holder.onContainer.addView(row);
         }
 
+        // 완료된 목표 행들
         int completedCount = member.completedGoals.size();
         for (int i = 0; i < completedCount; i++) {
             TeamGoalItem goal = member.completedGoals.get(i);
@@ -129,6 +149,7 @@ public class TeamMemberAdapter extends RecyclerView.Adapter<TeamMemberAdapter.Me
 
             titleTv.setText(goal.goalText);
 
+            // [중요] 목표 삭제 권한 — 팀장만 삭제 버튼 보임
             banBtn.setVisibility(isLeader ? View.VISIBLE : View.GONE);
             banBtn.setOnClickListener(v -> {
                 if (listener != null) listener.onDeleteGoal(goal);
@@ -142,7 +163,10 @@ public class TeamMemberAdapter extends RecyclerView.Adapter<TeamMemberAdapter.Me
         }
     }
 
-    // 목표 행 패딩·구분선 스타일 적용
+    /**
+     * 목표 행 패딩·구분선 스타일 적용함
+     * 마지막 행은 구분선 없이 흰 배경
+     */
     private void applyRowStyle(View row, boolean showBottomDivider) {
         float density = row.getResources().getDisplayMetrics().density;
         int paddingH = Math.round(density * 4);
@@ -155,13 +179,19 @@ public class TeamMemberAdapter extends RecyclerView.Adapter<TeamMemberAdapter.Me
         }
     }
 
-    // 아코디언 헤더 텍스트·컨테이너 표시/숨김
+    /**
+     * 아코디언 헤더 텍스트랑 컨테이너 표시/숨김 토글함
+     * 펼침 상태를 △▽ 화살표로 표시함
+     */
     private void updateAccordion(LinearLayout container, TextView headerText, boolean expanded, String label) {
         container.setVisibility(expanded ? View.VISIBLE : View.GONE);
         headerText.setText(label + (expanded ? " ▽" : " △"));
     }
 
-    // 마감일 텍스트·색상 (초과 시 빨간색)
+    /**
+     * 마감일 텍스트·색 설정함
+     * 기한 지났으면 빨간색으로 강조함
+     */
     private void applyDeadlineText(TextView deadlineTv, String endDate) {
         String text = DateTimeUtil.formatRemainingDays(endDate);
         deadlineTv.setText(text);
@@ -177,6 +207,9 @@ public class TeamMemberAdapter extends RecyclerView.Adapter<TeamMemberAdapter.Me
         return members.size();
     }
 
+    /**
+     * 팀원 카드 한 줄 뷰 들고 있는 ViewHolder임
+     */
     static class MemberVH extends RecyclerView.ViewHolder {
         CardView cardView;
         LinearLayout headerLayout;
@@ -191,7 +224,9 @@ public class TeamMemberAdapter extends RecyclerView.Adapter<TeamMemberAdapter.Me
         TextView comHeaderText;
         LinearLayout comContainer;
 
-        // ViewHolder 뷰 연결
+        /**
+         * 레이아웃에서 팀원 카드·아코디언·목표 컨테이너 뷰 findViewById로 연결함
+         */
         MemberVH(@NonNull View itemView) {
             super(itemView);
             if (itemView instanceof CardView) {

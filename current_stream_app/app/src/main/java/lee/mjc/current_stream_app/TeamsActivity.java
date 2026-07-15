@@ -49,7 +49,13 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-// 팀 상세 화면 (멤버별 목표, FAB, 팀 설정)
+/**
+ * 팀 상세 화면임
+ * 팀원별 진행/완료 목표를 RecyclerView로 보여주고,
+ * 팀장은 팀 수정·초대·목표 삭제·팀 삭제, 일반 팀원은 팀 나가기만 가능함
+ *
+ * 데이터 흐름: loadTeamData → applyTeamHeader → loadMembersAndGoals → mergeMembersAndGoals
+ */
 public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapter.Listener {
 
     public static final String EXTRA_TEAM_ID = "teamId";
@@ -67,6 +73,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
     private SwipeRefreshLayout swipeRefreshLayout;
     private FabSpeedDialMenu teamsFabMenu;
 
+    /** 화면에 표시할 팀원+목표 데이터 */
     private final List<TeamMemberItem> members = new ArrayList<>();
     private TeamMemberAdapter memberAdapter;
 
@@ -74,14 +81,24 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
     private String teamName = "";
     private String teamEndDate = "";
     private long leaderId;
+    /** 내 userId == leaderId 이면 true — 수정/FAB/하단 버튼 권한이 달라짐 */
     private boolean isLeader;
 
-    // 세션에서 내 유저 ID 가져오기
+    // --- auth ---
+
+    /**
+     * SessionManager에서 현재 로그인 사용자 userId 반환함
+     */
     private Long getMyUserId() {
         return SessionManager.getInstance().getUserId();
     }
 
-    // 팀장 여부에 따라 하단 버튼·수정 버튼 갱신
+    /**
+     * [중요] 팀장 여부(isLeader)에 따라 UI 권한 분기함
+     * - 팀장: 하단 "팀 삭제", 수정 버튼 보임, FAB 초대/목표 추가 가능
+     * - 일반 팀원: 하단 "팀 나가기", 수정 버튼 숨김
+     * leaderId는 loadTeamData에서 서버 응답으로 세팅됨
+     */
     private void refreshLeaderState() {
         Long myUserId = getMyUserId();
         isLeader = myUserId != null && myUserId == leaderId;
@@ -94,7 +111,12 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         updateTitleMaxWidth();
     }
 
-    // 바텀시트로 다른 팀 고르기
+    // --- teams/goals ---
+
+    /**
+     * 제목 탭하면 TeamPickerBottomSheet로 다른 팀 선택함
+     * 팀 바뀌면 SessionManager.currentTeamId 갱신 후 loadTeamData(false) 호출
+     */
     private void openTeamPicker() {
         TeamPickerBottomSheet.loadAndShow(
                 this,
@@ -111,7 +133,10 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         );
     }
 
-    // 멤버 목록에서 내 tag로 userId 맞춰두기
+    /**
+     * SessionManager에 userId가 없을 때 팀원 목록 tag와 매칭해서 userId 동기화함
+     * (로그인 직후 userId 미설정 상태 대비용)
+     */
     private void syncMyUserIdFromMembers(List<TeamMemberItem> parsedMembers) {
         if (getMyUserId() != null) return;
         String myTag = SessionManager.getInstance().getTag();
@@ -124,7 +149,12 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         }
     }
 
-    // 화면 초기화하고 팀 데이터 로드 준비
+    // --- lifecycle ---
+
+    /**
+     * 뷰·어댑터/FAB/SwipeRefresh 초기화하고 teamId를 Intent나 Session에서 가져옴
+     * teamId 없으면 에러 띄우고 finish 함
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -146,6 +176,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         memberAdapter = new TeamMemberAdapter(members, false, getMyUserId(), this);
         memberList.setAdapter(memberAdapter);
 
+        // Intent → Session 순으로 teamId 확보
         teamId = getIntent().getLongExtra(EXTRA_TEAM_ID, -1);
         if (teamId <= 0) {
             Long saved = SessionManager.getInstance().getCurrentTeamId();
@@ -169,10 +200,13 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                 new FabSpeedDialMenu.Item("목표 추가하기", R.drawable.pic_menu_add_goal, () -> showAddGoalDialog(null))
         ));
 
+        // [중요] 당겨서 새로고침 — loadTeamData(true)로 팀 메타+팀원+목표 전부 다시 불러옴
         swipeRefreshLayout.setOnRefreshListener(() -> loadTeamData(true));
     }
 
-    // FAB 메뉴 접기
+    /**
+     * 화면 이탈 시 FAB 스피드다이얼 메뉴 접음
+     */
     @Override
     protected void onPause() {
         super.onPause();
@@ -181,10 +215,15 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         }
     }
 
-    // 팀장이면 멤버 초대 다이얼로그 열기
+    // --- invites ---
+
+    /**
+     * FAB "팀원 초대하기" — 팀장만 InviteMemberDialog 엶
+     * 성공하면 loadMembersAndGoals로 팀원 목록 다시 불러옴
+     */
     private void openInviteMemberDialog() {
         if (!isLeader) {
-            showErrorDialog("팀장만 멤버를 초대할 수 있습니다.", null);
+            showErrorDialog("팀장만 팀원을 초대할 수 있습니다.", null);
             return;
         }
 
@@ -198,7 +237,10 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         });
     }
 
-    // 목표 추가 가능한 멤버만 걸러내기
+    /**
+     * 목표 추가 대상 팀원 필터링함
+     * 팀장은 전원, 일반 팀원은 본인만 선택 가능함
+     */
     private List<TeamMemberItem> getGoalAddEligibleMembers() {
         List<TeamMemberItem> eligible = new ArrayList<>();
         Long myUserId = getMyUserId();
@@ -210,7 +252,9 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         return eligible;
     }
 
-    // 화면 돌아오면 팀 데이터 다시 불러오기
+    /**
+     * 화면 복귀 시 팀 데이터 다시 로드함 (onResume마다 최신 상태 유지)
+     */
     @Override
     protected void onResume() {
         super.onResume();
@@ -219,12 +263,20 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         }
     }
 
-    // 팀 정보 로드 (당겨서 새로고침 아님)
+    // --- refresh ---
+
+    /**
+     * 팀 메타데이터 로드 오버로드 — 당겨서 새로고침 아닐 때 호출됨
+     */
     private void loadTeamData() {
         loadTeamData(false);
     }
 
-    // API로 팀 정보 불러오기
+    /**
+     * [중요] 팀 정보 API 호출 후 팀원/목표 로드를 연쇄 호출함
+     * GET /api/team (uid 헤더) → teamId에 맞는 팀 찾기 → applyTeamHeader → loadMembersAndGoals
+     * fromPullRefresh=true면 SwipeRefresh 스피너 켜짐, 끝나면 stopRefreshing 호출됨
+     */
     private void loadTeamData(boolean fromPullRefresh) {
         if (fromPullRefresh) {
             swipeRefreshLayout.setRefreshing(true);
@@ -276,6 +328,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                             return;
                         }
 
+                        // 내 팀 목록에서 현재 teamId에 해당하는 팀 메타 파싱
                         boolean found = false;
                         for (int i = 0; i < arr.length(); i++) {
                             JSONObject obj = arr.getJSONObject(i);
@@ -307,7 +360,9 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         });
     }
 
-    // 헤더(이름, 마감일)랑 멤버 어댑터 갱신
+    /**
+     * 팀 이름·마감일 헤더와 팀원 RecyclerView 어댑터 갱신함
+     */
     private void applyTeamHeader() {
         titleTv.setText(teamName);
         updateTitleMaxWidth();
@@ -317,7 +372,9 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         memberList.setAdapter(memberAdapter);
     }
 
-    // 팀 이름 pill이 설정 버튼 영역을 침범하지 않도록 가운데 정렬 + 글자 축소
+    /**
+     * 팀 이름 TextView가 설정 버튼 영역 안 침범하도록 maxWidth·autoSize 적용함
+     */
     private void updateTitleMaxWidth() {
         if (titleHost == null || titleTv == null) return;
         titleHost.post(() -> {
@@ -336,7 +393,13 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         });
     }
 
-    // 멤버·목표 목록 API 호출
+    /**
+     * [중요] 팀원 목록 + 목표 목록을 순차 API로 조회하고 화면 갱신함
+     * 1) GET /api/team/{teamId}/members — 팀원 파싱
+     * 2) 성공하면 GET /api/goal/team/{teamId}/all — 목표 파싱
+     * 3) mergeMembersAndGoals로 합친 뒤 stopRefreshing
+     * members API 실패 시 goals 요청 안 보냄
+     */
     private void loadMembersAndGoals() {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) {
@@ -355,23 +418,23 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                 .build();
 
         ApiHelper.CLIENT.newCall(membersRequest).enqueue(new Callback() {
-            // 멤버 목록 요청 실패
+            // 팀원 목록 요청 실패
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
                 runOnUiThread(() -> {
                     stopRefreshing();
-                    showErrorDialog("멤버 목록을 불러오지 못했습니다.", null);
+                    showErrorDialog("팀원 목록을 불러오지 못했습니다.", null);
                 });
             }
 
-            // 멤버 받고 목표 요청 이어감
+            // 팀원 받고 목표 요청 이어감
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
                 String body = response.body() != null ? response.body().string() : "";
                 if (!response.isSuccessful()) {
                     runOnUiThread(() -> {
                         stopRefreshing();
-                        showErrorDialog("멤버 목록을 불러오지 못했습니다.", null);
+                        showErrorDialog("팀원 목록을 불러오지 못했습니다.", null);
                     });
                     return;
                 }
@@ -381,18 +444,19 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                     if (!ApiHelper.isSuccess(membersRoot)) {
                         runOnUiThread(() -> {
                             stopRefreshing();
-                            showErrorDialog(ApiHelper.getMessage(membersRoot, "멤버 목록을 불러오지 못했습니다."), null);
+                            showErrorDialog(ApiHelper.getMessage(membersRoot, "팀원 목록을 불러오지 못했습니다."), null);
                         });
                         return;
                     }
                 } catch (Exception e) {
                     runOnUiThread(() -> {
                         stopRefreshing();
-                        showErrorDialog("멤버 목록 처리에 실패했습니다.", null);
+                        showErrorDialog("팀원 목록 처리에 실패했습니다.", null);
                     });
                     return;
                 }
 
+                // 팀원 응답 OK면 목표 API 이어서 호출
                 ApiHelper.CLIENT.newCall(goalsRequest).enqueue(new Callback() {
                     // 목표 목록 요청 실패
                     @Override
@@ -403,7 +467,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
                         });
                     }
 
-                    // 멤버·목표 합쳐서 화면 갱신
+                    // 팀원·목표 합쳐서 화면 갱신
                     @Override
                     public void onResponse(@NonNull Call call, @NonNull Response goalsResponse) throws IOException {
                         String goalsBody = goalsResponse.body() != null ? goalsResponse.body().string() : "";
@@ -433,12 +497,17 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         });
     }
 
-    // 멤버 JSON 파싱
+    /**
+     * 팀원 API 응답 JSON을 TeamMemberItem 리스트로 파싱함
+     */
     private List<TeamMemberItem> parseMembers(String body) throws Exception {
         return TeamMemberItem.parseList(body);
     }
 
-    // 목표 JSON 파싱
+    /**
+     * 목표 API 응답 JSON을 TeamGoalItem 리스트로 파싱함
+     * status 1이면 완료, 그 외는 진행 중으로 merge 단계에서 분류됨
+     */
     private List<TeamGoalItem> parseGoals(String body) throws Exception {
         List<TeamGoalItem> result = new ArrayList<>();
         JSONObject root = new JSONObject(body);
@@ -462,8 +531,15 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         return result;
     }
 
-    // 멤버에 목표 붙이고 정렬
+    /**
+     * [중요] 팀원에 목표를 병합하고 정렬한 뒤 RecyclerView·진행률 UI 갱신함
+     * - 기존 members의 펼침 상태(ongoingExpanded/completedExpanded) 보존함
+     * - goal.userId로 해당 팀원 찾아서 status==1이면 completedGoals, 아니면 ongoingGoals에 넣음
+     * - 정렬: 본인 → 팀장 → 이름순
+     * - syncMyUserIdFromMembers, refreshLeaderState 후 어댑터 교체
+     */
     private void mergeMembersAndGoals(List<TeamMemberItem> parsedMembers, List<TeamGoalItem> parsedGoals) {
+        // 펼침 상태 보존용 맵
         Map<Long, TeamMemberItem> preserved = new HashMap<>();
         for (TeamMemberItem m : members) {
             preserved.put(m.userId, m);
@@ -479,6 +555,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
             members.add(member);
         }
 
+        // 목표를 userId 기준으로 각 팀원에게 배분
         for (TeamGoalItem goal : parsedGoals) {
             for (TeamMemberItem member : members) {
                 if (member.userId == goal.userId) {
@@ -492,6 +569,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
             }
         }
 
+        // 본인 맨 위, 그다음 팀장, 나머지 이름순
         Long myUserId = getMyUserId();
         members.sort((a, b) -> {
             boolean aMe = myUserId != null && myUserId == a.userId;
@@ -510,7 +588,9 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         memberAdapter.notifyDataSetChanged();
     }
 
-    // 팀 전체 진행률 계산해서 UI 반영
+    /**
+     * 팀 전체 목표 완료율 계산해서 percentTv·progressBar에 반영함
+     */
     private void updateTeamProgress(List<TeamGoalItem> goals) {
         int total = goals.size();
         int completed = 0;
@@ -523,7 +603,10 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         progressBar.setProgress(percent);
     }
 
-    // 팀 이름·마감일 수정 다이얼로그
+    /**
+     * 팀 이름·마감일 수정 다이얼로그 엶
+     * 팀장만 저장 가능하고, 이름 길이·날짜(7일 후 이상) 검증함
+     */
     private void showEditTeamDialog() {
         Dialog dialog = new Dialog(this);
         dialog.setContentView(R.layout.dialog_teams_edit);
@@ -551,7 +634,7 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
             final boolean[] check = {true, teamEndDate != null && !teamEndDate.isEmpty()};
 
             nameEdit.addTextChangedListener(new SimpleTextWatcher() {
-                // 팀 이름 길이 검사
+                // 팀 이름 길이 검사 후 저장 버튼 활성화 갱신
                 @Override
                 public void afterTextChanged(Editable s) {
                     if (s.length() < TeamUiConstants.TEAM_NAME_MIN
@@ -582,7 +665,10 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         dialog.show();
     }
 
-    // 서버에 팀 정보 수정 PATCH
+    /**
+     * 서버에 팀 이름·마감일 PATCH 보냄
+     * 성공하면 다이얼로그 닫고 loadTeamData로 화면 갱신함
+     */
     private void updateTeam(String name, String endDate, Dialog dialog) {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) return;
@@ -617,17 +703,21 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         });
     }
 
-    // 멤버에게 목표 추가 다이얼로그 열기
+    /**
+     * TeamMemberAdapter 콜백 — 특정 팀원에게 목표 추가 다이얼로그 엶
+     */
     @Override
     public void onAddGoal(TeamMemberItem member) {
         showAddGoalDialog(member);
     }
 
-    // 목표 추가 다이얼로그 띄우기
+    /**
+     * AddGoalDialog 띄움 — preselected 있으면 해당 팀원이 기본 선택됨
+     */
     private void showAddGoalDialog(TeamMemberItem preselected) {
         List<TeamMemberItem> eligible = getGoalAddEligibleMembers();
         if (eligible.isEmpty()) {
-            showErrorDialog("목표를 추가할 수 있는 멤버가 없습니다.", null);
+            showErrorDialog("목표를 추가할 수 있는 팀원이 없습니다.", null);
             return;
         }
 
@@ -646,13 +736,17 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         });
     }
 
-    // 목표 상세 다이얼로그 열기
+    /**
+     * 목표 클릭 시 GoalDetailDialog 엶 — 상세/수정 후 loadMembersAndGoals 콜백
+     */
     @Override
     public void onGoalClick(TeamGoalItem goal, TeamMemberItem member) {
         GoalDetailDialog.show(this, ApiHelper.CLIENT, goal, isLeader, this::loadMembersAndGoals);
     }
 
-    // 팀장이면 목표 삭제 확인
+    /**
+     * 팀장만 목표 삭제 확인 다이얼로그 띄움
+     */
     @Override
     public void onDeleteGoal(TeamGoalItem goal) {
         if (!isLeader) return;
@@ -670,7 +764,10 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         dialog.show();
     }
 
-    // 서버에 목표 DELETE
+    /**
+     * 서버에 목표 삭제 DELETE 요청함
+     * 성공하면 loadMembersAndGoals로 목록 갱신함
+     */
     private void deleteGoal(long goalId) {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) return;
@@ -702,12 +799,16 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         });
     }
 
-    // 팀 삭제 or 팀 나가기 확인
+    /**
+     * [중요] 하단 버튼 클릭 — 팀장/일반 팀원 분기함
+     * 팀장: "팀 삭제" 확인 → deleteTeam()
+     * 일반 팀원: "팀 나가기" 확인 → leaveTeam()
+     */
     private void onBottomButtonClick() {
         if (isLeader) {
             ConfirmCancelDialog dialog = new ConfirmCancelDialog(
                     this,
-                    "팀을 삭제하시겠습니까?\n모든 목표와 멤버 정보가 삭제됩니다.",
+                    "팀을 삭제하시겠습니까?\n모든 목표와 팀원 정보가 삭제됩니다.",
                     "삭제",
                     "취소"
             );
@@ -731,7 +832,11 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         }
     }
 
-    // 팀 나가기 API 호출
+    /**
+     * [중요] 팀 나가기 API 호출함 (일반 팀원용)
+     * DELETE /api/team/{teamId}/leave — 성공 시 currentTeamId null 후 finish
+     * 팀장이 나가려 하면 서버가 "Leader cannot leave" 반환 → 팀 삭제 안내함
+     */
     private void leaveTeam() {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) return;
@@ -770,7 +875,11 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         });
     }
 
-    // 팀 삭제 API 호출
+    /**
+     * [중요] 팀 삭제 API 호출함 (팀장 전용)
+     * DELETE /api/team/{teamId} — 성공 시 currentTeamId null 후 finish
+     * 팀원·목표 데이터도 서버에서 같이 삭제됨
+     */
     private void deleteTeam() {
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) return;
@@ -803,7 +912,11 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         });
     }
 
-    // API 에러 메시지 뽑기
+    // --- UI helpers ---
+
+    /**
+     * API 에러 응답 body에서 사용자에게 보여줄 메시지 추출함
+     */
     private String parseApiErrorMessage(String body, String fallback) {
         try {
             JSONObject root = new JSONObject(body);
@@ -816,7 +929,9 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         return fallback;
     }
 
-    // 날짜 선택 (7일 후부터)
+    /**
+     * 팀 마감일 DatePickerDialog 열고 오늘 기준 7일 후부터 선택 가능하게 함
+     */
     private void showDatePicker(EditText dateEdit, TextView warnTv, DateSelectedListener listener) {
         LocalDate minDate = LocalDate.now().plusDays(7);
         Calendar calendar = Calendar.getInstance();
@@ -845,7 +960,9 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         picker.show();
     }
 
-    // 날짜를 yyyy년 M월 d일 형식으로
+    /**
+     * endDate 문자열을 "yyyy년 M월 d일" 형식으로 변환함
+     */
     private String formatKoreanDate(String endDate) {
         if (endDate == null || endDate.isEmpty()) return "";
         try {
@@ -858,14 +975,18 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         return endDate;
     }
 
-    // 스와이프 새로고침 멈추기
+    /**
+     * SwipeRefreshLayout 새로고침 스피너 끔
+     */
     private void stopRefreshing() {
         if (swipeRefreshLayout != null) {
             swipeRefreshLayout.setRefreshing(false);
         }
     }
 
-    // 에러 다이얼로그 띄우기
+    /**
+     * 에러 다이얼로그 표시함 — onConfirm 있으면 확인 후 콜백 실행
+     */
     private void showErrorDialog(String message, Runnable onConfirm) {
         if (onConfirm == null) {
             CommonDialog.showError(this, message);
@@ -879,15 +1000,14 @@ public class TeamsActivity extends AppCompatActivity implements TeamMemberAdapte
         dialog.show();
     }
 
+    /** 날짜 선택 완료 시 호출되는 리스너 — 유효하지 않으면 null 전달됨 */
     private interface DateSelectedListener {
-        // 날짜 선택됐을 때 콜백
         void onSelected(LocalDate date);
     }
 
+    /** TextWatcher에서 afterTextChanged만 쓰기 위한 추상 베이스 클래스임 */
     private abstract static class SimpleTextWatcher implements TextWatcher {
-        // TextWatcher 빈 구현
         @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-        // TextWatcher 빈 구현
         @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
     }
 }

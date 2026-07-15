@@ -31,11 +31,17 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-// 팀원 초대 다이얼로그 (tag 검색, 초대 전송)
+/**
+ * 기존 팀에 tag로 팀원 검색해서 초대하는 대화상자임
+ * tag 검증 → 중복·본인·기존 팀원 확인 → 순차 초대 전송 단계로 나눠서 잘못된 초대 미리 걸러냄
+ */
 public final class InviteMemberDialog {
 
     private static final int MAX_INVITE_COUNT = 5;
 
+    /**
+     * 초대 전송 다 끝났을 때 성공·실패 결과 알려주는 콜백임
+     */
     public interface OnCompleteListener {
         void onComplete(boolean success, String message);
     }
@@ -43,7 +49,10 @@ public final class InviteMemberDialog {
     private InviteMemberDialog() {
     }
 
-    // 팀원 초대 다이얼로그 표시 (tag 검색 후 목록에 추가)
+    /**
+     * 팀원 초대 대화상자 띄우고 tag 입력·목록 UI 세팅함
+     * 최대 5명까지 추가 가능하고 목록 비어 있으면 전송 버튼 비활성
+     */
     public static void show(AppCompatActivity activity, long teamId, OnCompleteListener listener) {
         Dialog dialog = new Dialog(activity);
         dialog.setContentView(R.layout.dialog_invite_member);
@@ -82,6 +91,7 @@ public final class InviteMemberDialog {
                 verifyAndAddTag(activity, client, teamId, tagEdit, inviteMembers, adapterHolder[0], countTv, submitBtn)
         );
 
+        // 키보드 완료(엔터) 눌러도 tag 추가되게 함
         tagEdit.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE
                     || (event != null
@@ -98,18 +108,24 @@ public final class InviteMemberDialog {
             if (inviteMembers.isEmpty()) return;
             submitBtn.setEnabled(false);
             tagEdit.setEnabled(false);
+            // index 0부터 재귀로 한 명씩 POST /api/team/invite
             sendInvites(activity, client, teamId, inviteMembers, 0, dialog, listener);
         });
 
         dialog.show();
     }
 
-    // 초대 목록 카운트 텍스트 갱신 (n/5)
+    /**
+     * 초대 목록 인원 수 (n/5) 형식으로 갱신함
+     */
     private static void updateCount(TextView countTv, List<InviteMember> members) {
         countTv.setText("(" + members.size() + "/" + MAX_INVITE_COUNT + ")");
     }
 
-    // tag 입력 후 서버에서 사용자 존재 여부 확인하고 목록에 추가
+    /**
+     * 입력한 tag 서버에 있는지 GET /api/user/tag 로 확인한 뒤 목록에 추가함
+     * 중복·본인 tag·최대 인원은 클라에서 먼저 검사함
+     */
     private static void verifyAndAddTag(
             AppCompatActivity activity,
             OkHttpClient client,
@@ -143,6 +159,7 @@ public final class InviteMemberDialog {
                     .get()
                     .build();
 
+            // [중요] GET /api/user/tag — tag 존재 여부 확인 (uid 헤더 없음, 공개 tag 조회)
             client.newCall(request).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
@@ -180,6 +197,7 @@ public final class InviteMemberDialog {
                             String foundName = data.optString("name", foundTag);
                             String foundUid = data.optString("uid", "");
 
+                            // [중요] 본인 tag 초대 방지 — SessionManager uid랑 응답 uid 비교
                             String myUid = SessionManager.getInstance().getUid();
                             if (myUid != null && myUid.equals(foundUid)) {
                                 showMessage(activity, "본인 tag는 초대할 수 없습니다.");
@@ -193,6 +211,7 @@ public final class InviteMemberDialog {
                                 return;
                             }
 
+                            // 이미 팀원인지 GET /api/team/{id}/members 로 한 번 더 확인
                             validateNotAlreadyInTeam(
                                     activity,
                                     client,
@@ -217,7 +236,10 @@ public final class InviteMemberDialog {
         }
     }
 
-    // 이미 팀 멤버인지 확인 후 초대 목록에 추가
+    /**
+     * 해당 tag 사용자가 이미 이 팀 팀원인지 서버 목록이랑 대조함
+     * tag 추가 직전에 중복 팀원 초대 막으려고 한 번 더 확인함
+     */
     private static void validateNotAlreadyInTeam(
             AppCompatActivity activity,
             OkHttpClient client,
@@ -230,6 +252,7 @@ public final class InviteMemberDialog {
             TextView countTv,
             MaterialButton submitBtn
     ) {
+        // [중요] API 호출 전 로그인 uid 확인 — 팀원 목록은 인증 필요
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) {
             showMessage(activity, "로그인 정보가 없습니다.");
@@ -241,6 +264,7 @@ public final class InviteMemberDialog {
                 .addHeader("uid", uid)
                 .build();
 
+        // [중요] GET /api/team/{id}/members — 기존 팀원 tag랑 비교해서 중복 초대 방지
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
@@ -264,7 +288,7 @@ public final class InviteMemberDialog {
                             for (int i = 0; i < arr.length(); i++) {
                                 JSONObject member = arr.getJSONObject(i);
                                 if (foundTag.equals(member.optString("tag", ""))) {
-                                    showMessage(activity, "이미 팀에 속한 멤버입니다.");
+                                    showMessage(activity, "이미 팀에 속한 팀원입니다.");
                                     tagEdit.setText("");
                                     return;
                                 }
@@ -284,7 +308,10 @@ public final class InviteMemberDialog {
         });
     }
 
-    // 초대 목록을 순차적으로 서버에 전송 (재귀)
+    /**
+     * 초대 목록을 인덱스 순서대로 하나씩 POST /api/team/invite 로 보냄
+     * 재귀 호출로 순차 처리해서 동시 요청 부하·순서 꼬임 방지함
+     */
     private static void sendInvites(
             AppCompatActivity activity,
             OkHttpClient client,
@@ -302,6 +329,7 @@ public final class InviteMemberDialog {
             return;
         }
 
+        // [중요] API 호출 전 로그인 uid 확인 — 팀장 권한 검증은 서버가 uid로 함
         String uid = SessionManager.getInstance().getUid();
         if (uid == null || uid.isEmpty()) {
             if (listener != null) listener.onComplete(false, "로그인 정보가 없습니다.");
@@ -322,6 +350,7 @@ public final class InviteMemberDialog {
                     .addHeader("uid", uid)
                     .build();
 
+            // [중요] POST /api/team/invite — 팀원 초대 전송, 서버가 팀장 여부·중복 초대 검사
             client.newCall(request).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
@@ -344,6 +373,7 @@ public final class InviteMemberDialog {
                             }
                             return;
                         }
+                        // 다음 사람 초대 (index+1)
                         sendInvites(activity, client, teamId, inviteMembers, index + 1, dialog, listener);
                     });
                 }
@@ -354,7 +384,9 @@ public final class InviteMemberDialog {
         }
     }
 
-    // 초대 목록에 동일 tag가 있는지 확인
+    /**
+     * 초대 목록에 같은 tag 이미 있는지 확인함
+     */
     private static boolean containsTag(List<InviteMember> members, String tag) {
         for (InviteMember member : members) {
             if (member.tag.equals(tag)) return true;
@@ -362,19 +394,22 @@ public final class InviteMemberDialog {
         return false;
     }
 
-    // 서버 초대 오류 응답을 사용자 메시지로 변환
+    /**
+     * 서버 초대 에러 응답 문자열을 사용자 메시지로 바꿈
+     * Not Leader면 팀장만 초대 가능하다고 알려줌
+     */
     private static String mapInviteError(String body) {
         try {
             JSONObject root = new JSONObject(body);
             String data = root.optString("responseData", "");
             if ("Already in team".equals(data)) {
-                return "이미 팀에 속한 멤버입니다.";
+                return "이미 팀에 속한 팀원입니다.";
             }
             if ("Already invited".equals(data)) {
-                return "이미 초대된 멤버입니다.";
+                return "이미 초대된 팀원입니다.";
             }
             if ("Not Leader".equals(data)) {
-                return "팀장만 멤버를 초대할 수 있습니다.";
+                return "팀장만 팀원을 초대할 수 있습니다.";
             }
             if (!data.isEmpty() && !"null".equals(data)) {
                 return data;
@@ -384,7 +419,9 @@ public final class InviteMemberDialog {
         return "초대 전송에 실패했습니다.";
     }
 
-    // CommonDialog로 오류/안내 메시지 표시
+    /**
+     * CommonDialog로 오류·안내 메시지 띄움
+     */
     private static void showMessage(AppCompatActivity activity, String message) {
         CommonDialog.showError(activity, message);
     }

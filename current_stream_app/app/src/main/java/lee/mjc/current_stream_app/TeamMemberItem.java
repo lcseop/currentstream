@@ -3,19 +3,31 @@ package lee.mjc.current_stream_app;
 import java.util.ArrayList;
 import java.util.List;
 
-// 팀 멤버 한 명과 그 멤버의 목표 목록을 담는 모델
+/**
+ * 팀원 한 명이랑 그 사람 진행/완료 목표 목록 담는 모델임.
+ * 펼침 상태도 들고 있어서 RecyclerView 스크롤해도 UI 유지함.
+ */
 public class TeamMemberItem {
-    public long userId;                              // DB user ID
-    public String name;                              // 표시 이름
-    public String tag;                               // 사용자 tag
-    public String userColor;                         // 멤버 색상 (HEX)
-    public boolean leader;                           // 팀장 여부
-    public final List<TeamGoalItem> ongoingGoals = new ArrayList<>();    // 진행 중 목표
-    public final List<TeamGoalItem> completedGoals = new ArrayList<>();  // 완료 목표
-    public boolean ongoingExpanded = true;           // 진행 중 섹션 펼침
-    public boolean completedExpanded = false;        // 완료 섹션 펼침
+    /** user ID */
+    public long userId;
+    /** 닉네임 */
+    public String name;
+    /** tag */
+    public String tag;
+    /** 팀원 색상 */
+    public String userColor;
+    /** 팀장 여부 */
+    public boolean leader;
+    /** 진행 중 목표 목록 */
+    public final List<TeamGoalItem> ongoingGoals = new ArrayList<>();
+    /** 완료 목표 목록 */
+    public final List<TeamGoalItem> completedGoals = new ArrayList<>();
+    /** 진행 중 섹션 펼침 여부 */
+    public boolean ongoingExpanded = true;
+    /** 완료 섹션 펼침 여부 */
+    public boolean completedExpanded = false;
 
-    // 팀 멤버 항목 생성
+    /** 팀원 항목 생성함. 목표 목록은 빈 리스트로 시작 */
     public TeamMemberItem(long userId, String name, String tag, boolean leader, String userColor) {
         this.userId = userId;
         this.name = name;
@@ -24,11 +36,12 @@ public class TeamMemberItem {
         this.userColor = userColor;
     }
 
-    // API 팀 멤버 JSON 응답을 TeamMemberItem 리스트로 파싱
+    /** 팀원 JSON 응답을 TeamMemberItem 리스트로 파싱함 */
     public static List<TeamMemberItem> parseList(String body) throws Exception {
         List<TeamMemberItem> result = new ArrayList<>();
         org.json.JSONObject root = new org.json.JSONObject(body);
         org.json.JSONArray arr = root.optJSONArray("responseData");
+        // responseData 없으면 빈 리스트
         if (arr == null) return result;
 
         for (int i = 0; i < arr.length(); i++) {

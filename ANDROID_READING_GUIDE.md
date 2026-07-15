@@ -181,3 +181,20 @@ Model(`GoalItem`, `TeamItem` …)은 **JSON 그릇**이라 필드만 훑고 넘�
 ---
 
 더 자세한 API·백엔드 구조는 프로젝트 루트 `PROJECT_CONTEXT.md` 를 보세요.
+
+---
+
+## 9. 코드 주석 읽는 법
+
+프로젝트 Java 파일에는 아래 규칙으로 주석이 달려 있습니다.
+
+| 표기 | 의미 |
+|------|------|
+| `/** ... */` (클래스·메서드) | **무엇을 하는지** + **어떤 원리/흐름으로 동작하는지** |
+| `// [중요] ...` | 꼭 알아야 할 비즈니스·보안·버그 방지 로직 (uid 헤더, 세션 검증, 권한 등) |
+| `// --- 섹션명 ---` | 긴 Activity 안에서 lifecycle / auth / API / UI 블록 구분 |
+
+**예시 — 최근 활동 로그가 안 보였던 이유**  
+`MainActivity.loadTeamLogs` 주석: `GET /api/team/log/{teamId}` 는 **`uid` 헤더 필수** (`ApiHelper.uidRequest` 사용).
+
+백엔드 Service 주석은 **권한·상태값·트랜잭션** 규칙을, Android 주석은 **OkHttp 콜백 → UI 갱신** 흐름을 설명합니다.
